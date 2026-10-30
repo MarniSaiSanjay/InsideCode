@@ -40,6 +40,7 @@ export type Source = { id: number; path: string; text: string; is_test: boolean 
 
 export type Citation = {
   id: string
+  chunk_id: number
   path: string
   start_line: number
   end_line: number

@@ -1,17 +1,15 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
-import {
-  api,
-  post,
-  type Explanation,
-  type Health,
-  type Result,
-  type SearchResponse,
-  type Snapshot,
-  type Source,
-  type Status,
-} from './api'
+import { useEffect, useRef, useState, type DragEvent, type FormEvent } from 'react'
+import { api, type Health, type SearchResponse, type Snapshot, type Status } from './api'
+import Results from './Results'
 
 type Busy = '' | 'upload' | 'search'
+
+const EXAMPLES = [
+  'Where is configuration loaded?',
+  'Where are errors handled?',
+  'Where is the database initialised?',
+  'How is the app started?',
+]
 
 export default function App() {
   const [health, setHealth] = useState<Health | null>(null)
@@ -19,8 +17,13 @@ export default function App() {
   const [search, setSearch] = useState<SearchResponse | null>(null)
   const [busy, setBusy] = useState<Busy>('')
   const [error, setError] = useState('')
+  const [file, setFile] = useState<File | null>(null)
+  const [dragging, setDragging] = useState(false)
   const latest = useRef(0)
   const statusSeq = useRef(0)
+  const fileInput = useRef<HTMLInputElement>(null)
+  const askForm = useRef<HTMLFormElement>(null)
+  const query = useRef<HTMLInputElement>(null)
 
   // A newer status read or a successful upload makes pending status reads stale.
   const refreshStatus = () => {
@@ -74,279 +77,243 @@ export default function App() {
     run('search', () => api<SearchResponse>(`/search?${params}`), setSearch)
   }
 
+  function drop(event: DragEvent<HTMLLabelElement>) {
+    event.preventDefault()
+    setDragging(false)
+    const input = fileInput.current
+    if (!input || busy || !event.dataTransfer.files.length) return
+    // Keep only the first file, so the upload matches the file name shown.
+    const one = new DataTransfer()
+    one.items.add(event.dataTransfer.files[0])
+    input.files = one.files
+    setFile(one.files[0])
+  }
+
+  function askExample(text: string) {
+    if (!query.current) return
+    query.current.value = text
+    askForm.current?.requestSubmit()
+  }
+
+  const limitMb = health && Math.round(health.limits.max_zip_bytes / 2 ** 20)
+
   return (
-    <main>
-      <header>
-        <h1>Brahmaniss</h1>
-        <p>Find the right code in an unfamiliar Python repository, with exact source evidence.</p>
-        {health && (
-          <p className="muted">
-            AI explanation: {health.ai_configured ? 'available' : 'not configured (search-only)'}
-          </p>
-        )}
+    <>
+      <header className="topbar">
+        <div className="topbar-inner">
+          <div className="brand">
+            <Logo />
+            <span className="brand-name">Brahmaniss</span>
+            <span className="tagline">Evidence-first code discovery</span>
+          </div>
+          <div className="pills">
+            <span className="pill ok" title="Your code is indexed on this machine">
+              <span className="dot" aria-hidden="true" />
+              Local index
+            </span>
+            {health && (
+              <span
+                className={health.ai_configured ? 'pill accent' : 'pill'}
+                title={health.ai_configured ? 'AI explanations available on request' : 'Search-only mode'}
+              >
+                <span className="dot" aria-hidden="true" />
+                AI: {health.ai_configured ? 'on' : 'off'}
+              </span>
+            )}
+          </div>
+        </div>
       </header>
 
-      <section aria-labelledby="upload-title">
-        <h2 id="upload-title">1. Upload a repository</h2>
-        <form onSubmit={upload} className="row">
-          <label className="visually-hidden" htmlFor="file">Repository ZIP</label>
-          <input id="file" name="file" type="file" accept=".zip,application/zip" disabled={!!busy} />
-          <button disabled={!!busy}>{busy === 'upload' ? 'Indexing…' : 'Upload and index'}</button>
-        </form>
-        <p className="muted">
-          Python files only. Code is indexed locally and never executed.
-          {health && ` Limit: ${Math.round(health.limits.max_zip_bytes / 2 ** 20)} MB ZIP.`}
-        </p>
-        {snapshot ? <SnapshotSummary snapshot={snapshot} /> : <p>No repository indexed yet.</p>}
-      </section>
+      <main>
+        <div className="hero">
+          <h1>Find where things live in an unfamiliar Python repo.</h1>
+          <p>
+            Ask a question and get ranked code snippets with exact paths and line numbers. Evidence
+            first. AI explanations only when you ask.
+          </p>
+          <ul className="trust">
+            <li><Check /> Indexed locally</li>
+            <li><Check /> Never executed</li>
+            <li><Check /> Cites exact lines</li>
+          </ul>
+        </div>
 
-      <section aria-labelledby="ask-title">
-        <h2 id="ask-title">2. Ask where something lives</h2>
-        <form id="ask" onSubmit={ask} className="row">
-          <label className="visually-hidden" htmlFor="q">Question or symbol</label>
-          <input
-            id="q"
-            name="q"
-            maxLength={500}
-            placeholder="e.g. Where is the session cookie loaded?  or  url_for"
-            disabled={!snapshot || !!busy}
-          />
-          <button disabled={!snapshot || !!busy}>{busy === 'search' ? 'Searching…' : 'Search'}</button>
-        </form>
-        {health?.ai_configured && (
-          <label className="muted">
-            <input type="checkbox" name="expand" form="ask" /> Also ask AI for related search terms
-            (sends only your question to Featherless; local results are kept)
-          </label>
-        )}
-      </section>
+        <div className="steps">
+          <section className="panel" aria-labelledby="upload-title">
+            <div className="panel-head">
+              <span className="step" aria-hidden="true">1</span>
+              <h2 id="upload-title">Upload a repository</h2>
+            </div>
+            <form onSubmit={upload} className="upload">
+              <label
+                htmlFor="file"
+                className={`dropzone${dragging ? ' dragging' : ''}${busy ? ' disabled' : ''}`}
+                onDragOver={(e) => {
+                  e.preventDefault()
+                  if (!busy) setDragging(true)
+                }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={drop}
+              >
+                <input
+                  ref={fileInput}
+                  id="file"
+                  name="file"
+                  type="file"
+                  accept=".zip,application/zip"
+                  className="visually-hidden"
+                  disabled={!!busy}
+                  onChange={(e) => setFile(e.currentTarget.files?.[0] ?? null)}
+                />
+                <UploadIcon />
+                {file ? (
+                  <>
+                    <span className="drop-title">{file.name}</span>
+                    <span className="muted">{formatSize(file.size)} · click to choose another</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="drop-title">Drop a repository ZIP here</span>
+                    <span className="muted">or click to choose a file</span>
+                  </>
+                )}
+              </label>
+              <button className="primary" disabled={!!busy}>
+                {busy === 'upload' ? <><Spinner /> Indexing…</> : 'Upload and index'}
+              </button>
+            </form>
+            <p className="muted hint">
+              Python files only. Code is indexed locally and never executed.
+              {limitMb ? ` Max ${limitMb} MB ZIP.` : ''}
+            </p>
+            {snapshot ? (
+              <SnapshotSummary snapshot={snapshot} />
+            ) : (
+              <div className="empty">
+                <strong>No repository indexed yet</strong>
+                <span className="muted">Upload a ZIP to start asking questions.</span>
+              </div>
+            )}
+          </section>
 
-      <div aria-live="polite">
-        {error && <p role="alert" className="error">{error}</p>}
-        {search && (
-          <Results search={search} aiReady={!!health?.ai_configured} onError={refreshStatus} />
-        )}
-      </div>
-    </main>
+          <section className="panel" aria-labelledby="ask-title">
+            <div className="panel-head">
+              <span className="step" aria-hidden="true">2</span>
+              <h2 id="ask-title">Ask where something lives</h2>
+            </div>
+            <form id="ask" ref={askForm} onSubmit={ask} className="searchbar">
+              <label className="visually-hidden" htmlFor="q">Question or symbol</label>
+              <div className="search-field">
+                <SearchIcon />
+                <input
+                  ref={query}
+                  id="q"
+                  name="q"
+                  maxLength={500}
+                  autoComplete="off"
+                  placeholder="e.g. Where is the session cookie loaded?  or  url_for"
+                  disabled={!snapshot || !!busy}
+                />
+              </div>
+              <button className="primary" disabled={!snapshot || !!busy}>
+                {busy === 'search' ? <><Spinner /> Searching…</> : 'Search'}
+              </button>
+            </form>
+            {snapshot ? (
+              <div className="examples" aria-label="Example questions" role="group">
+                {EXAMPLES.map((text) => (
+                  <button
+                    key={text}
+                    type="button"
+                    className="example"
+                    disabled={!!busy}
+                    onClick={() => askExample(text)}
+                  >
+                    {text}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="muted hint">Index a repository first to enable search.</p>
+            )}
+            {health?.ai_configured && (
+              <label className="switch">
+                <input type="checkbox" name="expand" form="ask" />
+                <span className="switch-track" aria-hidden="true" />
+                <span>
+                  Also ask AI for related search terms
+                  <span className="muted switch-note">
+                    Sends only your question to Featherless; local results are kept.
+                  </span>
+                </span>
+              </label>
+            )}
+          </section>
+        </div>
+
+        <div aria-live="polite" className="output">
+          {error && (
+            <p role="alert" className="error banner">
+              <AlertIcon />
+              <span>{error}</span>
+            </p>
+          )}
+          {search && (
+            <Results search={search} aiReady={!!health?.ai_configured} onError={refreshStatus} />
+          )}
+        </div>
+      </main>
+    </>
   )
 }
 
 function SnapshotSummary({ snapshot }: { snapshot: Snapshot }) {
   const skipped = Object.entries(snapshot.skipped)
   return (
-    <p className="ready">
-      Ready: <strong>{snapshot.name}</strong> — {snapshot.files} Python files, {snapshot.chunks} code
-      regions indexed.
-      {skipped.length > 0 && ` Skipped: ${skipped.map(([why, n]) => `${n} ${why}`).join(', ')}.`}
-    </p>
-  )
-}
-
-type ResultsProps = { search: SearchResponse; aiReady: boolean; onError: () => void }
-
-function Results({ search, aiReady, onError }: ResultsProps) {
-  const ai = search.ai_note ? (
-    <p className="muted">{search.ai_note}</p>
-  ) : (
-    search.suggested_terms.length > 0 && (
-      <p className="muted">AI-suggested terms also searched: {search.suggested_terms.join(', ')}</p>
-    )
-  )
-  // A new search (different evidence) starts a fresh AI panel.
-  const key = [search.snapshot_id, search.query, ...search.results.map((r) => r.id)].join('|')
-  const panel = aiReady && <AIPanel key={key} search={search} />
-  if (!search.results.length) {
-    return (
-      <>
-        {ai}
-        {panel}
-        <p>
-          No matches for “{search.query}” in our index. That does not prove it is absent from the
-          repository — try a function name or different words.
-        </p>
-      </>
-    )
-  }
-  return (
-    <section aria-label="Evidence">
-      <h2>Evidence for “{search.query}”</h2>
-      {ai}
-      <ol className="results">
-        {search.results.map((r) => (
-          <EvidenceCard
-            key={`${search.snapshot_id}-${r.id}`}
-            result={r}
-            snapshotId={search.snapshot_id}
-            onError={onError}
-          />
-        ))}
-      </ol>
-      {panel}
-    </section>
-  )
-}
-
-const MAX_EVIDENCE = 5
-
-// Nothing leaves the machine until the user reviews the exact context and presses Send.
-function AIPanel({ search }: { search: SearchResponse }) {
-  const [context, setContext] = useState('')
-  const [explanation, setExplanation] = useState<Explanation | null>(null)
-  const [general, setGeneral] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  const evidence = {
-    snapshot_id: search.snapshot_id,
-    question: search.query,
-    chunk_ids: search.results.slice(0, MAX_EVIDENCE).map((r) => r.id),
-  }
-
-  async function call<T>(path: string, body: unknown, apply: (value: T) => void) {
-    setBusy(true)
-    setError('')
-    try {
-      apply(await post<T>(path, body))
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const prepare = () =>
-    call<{ context: string }>('/explain/context', evidence, (r) => setContext(r.context))
-  const send = () =>
-    call<Explanation>('/explain', evidence, (r) => {
-      setContext('')
-      setExplanation(r)
-    })
-  const ask = () =>
-    call<{ answer: string }>('/general', { question: search.query }, (r) => setGeneral(r.answer))
-
-  return (
-    <section aria-label="AI help" className="ai">
-      <h2>AI help (optional)</h2>
-      <p className="muted">
-        Nothing is sent to Featherless until you choose. AI text can be wrong; check the cited code.
+    <div className="summary">
+      <p className="summary-title">
+        <Check /> Ready to search
       </p>
-      <div className="row">
-        {evidence.chunk_ids.length > 0 && (
-          <button disabled={busy} onClick={prepare}>
-            Explain the top {evidence.chunk_ids.length} results…
-          </button>
-        )}
-        <button disabled={busy} onClick={ask}>
-          General programming answer (sends only the question)
-        </button>
-      </div>
-      {context && (
-        <div>
-          <p>This exact text will be sent with your question:</p>
-          <pre className="context" tabIndex={0}>
-            {context}
-          </pre>
-          <div className="row">
-            <button disabled={busy} onClick={send}>
-              {busy ? 'Waiting for AI…' : 'Send to Featherless'}
-            </button>
-            <button disabled={busy} className="link" onClick={() => setContext('')}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-      {error && <p role="alert" className="error">{error}</p>}
-      {explanation && (
-        <div>
-          <h3>Explanation from the selected code</h3>
-          {explanation.note && <p className="warn">{explanation.note}</p>}
-          <ul>
-            {explanation.points.map((p, i) => (
-              <li key={i}>
-                {p.text}{' '}
-                {p.evidence.map((c) => (
-                  <code key={c.id} className="cite">
-                    [{c.id}] {c.path}:{c.start_line}–{c.end_line}
-                    {c.is_test && ' (test)'}
-                  </code>
-                ))}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {general && (
-        <div>
-          <h3>General answer — not based on this repository</h3>
-          <p className="general">{general}</p>
-        </div>
-      )}
-    </section>
+      <ul className="stats">
+        <li className="stat repo" title={snapshot.name}>{snapshot.name}</li>
+        <li className="stat"><strong>{snapshot.files}</strong> Python files</li>
+        <li className="stat"><strong>{snapshot.chunks}</strong> code regions</li>
+        {skipped.map(([why, n]) => (
+          <li key={why} className="stat skipped"><strong>{n}</strong> skipped: {why}</li>
+        ))}
+      </ul>
+    </div>
   )
 }
 
-type CardProps = { result: Result; snapshotId: string; onError: () => void }
+function formatSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 2 ** 20) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / 2 ** 20).toFixed(1)} MB`
+}
 
-function EvidenceCard({ result, snapshotId, onError }: CardProps) {
-  const [open, setOpen] = useState(false)
-  const [source, setSource] = useState<Source | null>(null)
-  const [error, setError] = useState('')
-  const lines: [number, number] = [result.start_line, result.end_line]
-
-  function toggle() {
-    setOpen(!open)
-    if (!source) {
-      api<Source>(`/snapshots/${snapshotId}/files/${result.file_id}`).then(setSource, (e: Error) => {
-        setError(e.message)
-        onError()
-      })
-    }
-  }
-
+function Icon({ d, className = 'icon' }: { d: string; className?: string }) {
   return (
-    <li className="card">
-      <div className="card-head">
-        <code className="path">
-          {result.path}:{result.start_line}–{result.end_line}
-        </code>
-        {result.symbol && <span className="symbol">{result.symbol}</span>}
-        {result.is_test && <span className="badge">test</span>}
-        <span className="muted">{result.reasons.join(' · ')}</span>
-      </div>
-      {open && source ? (
-        <CodeLines text={source.text} first={1} highlight={lines} scroll />
-      ) : (
-        <CodeLines text={result.text} first={result.start_line} />
-      )}
-      <button className="link" aria-expanded={open} onClick={toggle}>
-        {open ? 'Show snippet only' : 'Show in full file'}
-      </button>
-      {open && error && <p role="alert" className="error">{error}</p>}
-    </li>
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={d} />
+    </svg>
   )
 }
 
-function CodeLines(props: { text: string; first: number; highlight?: [number, number]; scroll?: boolean }) {
-  const { text, first, highlight, scroll } = props
-  const box = useRef<HTMLPreElement>(null)
-  useEffect(() => {
-    const pre = box.current
-    const hit = pre?.querySelector<HTMLElement>('.hl')
-    if (scroll && pre && hit) pre.scrollTop = hit.offsetTop - pre.clientHeight / 3
-  }, [scroll])
-  const lines = text.replace(/\n$/, '').split('\n')
+const Check = () => <Icon d="M20 6 9 17l-5-5" />
+const SearchIcon = () => <Icon d="m21 21-4.3-4.3M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z" />
+const UploadIcon = () => <Icon className="icon drop-icon" d="M12 15V3m0 0-4 4m4-4 4 4M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" />
+const AlertIcon = () => <Icon d="M12 8v4m0 4h.01M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z" />
+const Spinner = () => <span className="spinner" aria-hidden="true" />
+
+function Logo() {
   return (
-    <pre ref={box} className={scroll ? 'code full' : 'code'} tabIndex={0}>
-      {lines.map((line, i) => {
-        const n = first + i
-        const hit = highlight && n >= highlight[0] && n <= highlight[1]
-        return (
-          <span key={n} className={hit ? 'line hl' : 'line'}>
-            <span className="n">{n}</span>
-            {line || ' '}
-          </span>
-        )
-      })}
-    </pre>
+    <svg className="logo" viewBox="0 0 32 32" aria-hidden="true">
+      <rect width="32" height="32" rx="8" fill="var(--accent)" />
+      <path d="M11 10 7 16l4 6M21 10l4 6-4 6" fill="none" stroke="var(--surface)" strokeWidth="2.4"
+        strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="16" cy="16" r="2.4" fill="var(--surface)" />
+    </svg>
   )
 }
