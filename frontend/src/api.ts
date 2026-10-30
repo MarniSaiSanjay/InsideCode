@@ -38,6 +38,25 @@ export type SearchResponse = {
 
 export type Source = { id: number; path: string; text: string; is_test: boolean }
 
+export type Citation = {
+  id: string
+  path: string
+  start_line: number
+  end_line: number
+  is_test: boolean
+}
+
+export type Explanation = {
+  sufficient: boolean
+  note: string | null
+  points: { text: string; evidence: Citation[] }[]
+}
+
+export function post<T>(path: string, body: unknown): Promise<T> {
+  const headers = { 'Content-Type': 'application/json' }
+  return api<T>(path, { method: 'POST', headers, body: JSON.stringify(body) })
+}
+
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`/api${path}`, init)
   const body = await response.json().catch(() => ({}))

@@ -5,14 +5,31 @@ from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException, Query, Request, UploadFile
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
 
 from .config import MIB, Settings, load_settings
-from .explain import AIUnavailable, suggest_terms
+from .explain import (
+    MAX_EVIDENCE,
+    AIUnavailable,
+    evidence_context,
+    explain,
+    general_answer,
+    suggest_terms,
+)
 from .indexing import ImportRejected
-from .search import MAX_QUERY_CHARS, search
+from .search import MAX_QUERY_CHARS, RESULT_SQL, search
 from .storage import StaleSnapshot, Store, fts5_available
 
 LOCAL_HOSTS = {"localhost", "127.0.0.1", "[::1]", "::1"}
+
+
+class Question(BaseModel):
+    question: str = Field(min_length=1, max_length=MAX_QUERY_CHARS)
+
+
+class Evidence(Question):
+    snapshot_id: str
+    chunk_ids: list[int] = Field(min_length=1, max_length=MAX_EVIDENCE)
 
 
 def _hostname(value: str) -> str:
@@ -33,6 +50,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def stale(_: Request, __: StaleSnapshot):
         detail = "This result belongs to an older upload. Search again."
         return JSONResponse({"detail": detail}, status_code=409)
+
+    @app.exception_handler(AIUnavailable)
+    def unavailable(_: Request, exc: AIUnavailable):
+        detail = f"AI answer unavailable: {exc}. Search results are unaffected."
+        return JSONResponse({"detail": detail}, status_code=503)
 
     @app.middleware("http")
     async def local_only(request: Request, call_next):
@@ -91,5 +113,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if not found:
             raise HTTPException(404, "File not found in this snapshot")
         return found
+
+    def evidence_rows(body: Evidence) -> list[dict]:
+        with closing(store.connect(body.snapshot_id)) as db:
+            rows = [db.execute(RESULT_SQL, (i,)).fetchone() for i in dict.fromkeys(body.chunk_ids)]
+        if not all(rows):
+            raise HTTPException(404, "Evidence not found in this snapshot")
+        return [dict(row) for row in rows]
+
+    @app.post("/api/explain/context")
+    def explain_context(body: Evidence):
+        return {"context": evidence_context(body.question, evidence_rows(body))}
+
+    @app.post("/api/explain")
+    def explain_evidence(body: Evidence):
+        return explain(settings, body.question, evidence_rows(body))
+
+    @app.post("/api/general")
+    def general(body: Question):
+        return {"answer": general_answer(settings, body.question)}
 
     return app

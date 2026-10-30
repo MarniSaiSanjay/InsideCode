@@ -124,6 +124,38 @@ button.link {
   max-height: 480px;
 }
 
+.ai {
+  margin-top: 24px;
+  padding: 12px 16px;
+  background: #fff;
+  border: 1px solid #d1d9e0;
+  border-left: 4px solid #8250df;
+  border-radius: 6px;
+}
+
+.context {
+  max-height: 240px;
+  overflow: auto;
+  padding: 8px;
+  background: #f6f8fa;
+  white-space: pre-wrap;
+  font: 12px/1.4 ui-monospace, monospace;
+}
+
+.warn {
+  color: #9a6700;
+}
+
+.cite {
+  margin-right: 6px;
+  font-size: 0.85rem;
+  color: #0969da;
+}
+
+.general {
+  white-space: pre-wrap;
+}
+
 .line {
   display: block;
   padding-right: 12px;

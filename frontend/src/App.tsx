@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import {
   api,
+  post,
+  type Explanation,
   type Health,
   type Result,
   type SearchResponse,
@@ -121,7 +123,9 @@ export default function App() {
 
       <div aria-live="polite">
         {error && <p role="alert" className="error">{error}</p>}
-        {search && <Results search={search} onError={refreshStatus} />}
+        {search && (
+          <Results search={search} aiReady={!!health?.ai_configured} onError={refreshStatus} />
+        )}
       </div>
     </main>
   )
@@ -138,7 +142,9 @@ function SnapshotSummary({ snapshot }: { snapshot: Snapshot }) {
   )
 }
 
-function Results({ search, onError }: { search: SearchResponse; onError: () => void }) {
+type ResultsProps = { search: SearchResponse; aiReady: boolean; onError: () => void }
+
+function Results({ search, aiReady, onError }: ResultsProps) {
   const ai = search.ai_note ? (
     <p className="muted">{search.ai_note}</p>
   ) : (
@@ -146,10 +152,14 @@ function Results({ search, onError }: { search: SearchResponse; onError: () => v
       <p className="muted">AI-suggested terms also searched: {search.suggested_terms.join(', ')}</p>
     )
   )
+  // A new search (different evidence) starts a fresh AI panel.
+  const key = [search.snapshot_id, search.query, ...search.results.map((r) => r.id)].join('|')
+  const panel = aiReady && <AIPanel key={key} search={search} />
   if (!search.results.length) {
     return (
       <>
         {ai}
+        {panel}
         <p>
           No matches for “{search.query}” in our index. That does not prove it is absent from the
           repository — try a function name or different words.
@@ -171,6 +181,106 @@ function Results({ search, onError }: { search: SearchResponse; onError: () => v
           />
         ))}
       </ol>
+      {panel}
+    </section>
+  )
+}
+
+const MAX_EVIDENCE = 5
+
+// Nothing leaves the machine until the user reviews the exact context and presses Send.
+function AIPanel({ search }: { search: SearchResponse }) {
+  const [context, setContext] = useState('')
+  const [explanation, setExplanation] = useState<Explanation | null>(null)
+  const [general, setGeneral] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const evidence = {
+    snapshot_id: search.snapshot_id,
+    question: search.query,
+    chunk_ids: search.results.slice(0, MAX_EVIDENCE).map((r) => r.id),
+  }
+
+  async function call<T>(path: string, body: unknown, apply: (value: T) => void) {
+    setBusy(true)
+    setError('')
+    try {
+      apply(await post<T>(path, body))
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const prepare = () =>
+    call<{ context: string }>('/explain/context', evidence, (r) => setContext(r.context))
+  const send = () =>
+    call<Explanation>('/explain', evidence, (r) => {
+      setContext('')
+      setExplanation(r)
+    })
+  const ask = () =>
+    call<{ answer: string }>('/general', { question: search.query }, (r) => setGeneral(r.answer))
+
+  return (
+    <section aria-label="AI help" className="ai">
+      <h2>AI help (optional)</h2>
+      <p className="muted">
+        Nothing is sent to Featherless until you choose. AI text can be wrong; check the cited code.
+      </p>
+      <div className="row">
+        {evidence.chunk_ids.length > 0 && (
+          <button disabled={busy} onClick={prepare}>
+            Explain the top {evidence.chunk_ids.length} results…
+          </button>
+        )}
+        <button disabled={busy} onClick={ask}>
+          General programming answer (sends only the question)
+        </button>
+      </div>
+      {context && (
+        <div>
+          <p>This exact text will be sent with your question:</p>
+          <pre className="context" tabIndex={0}>
+            {context}
+          </pre>
+          <div className="row">
+            <button disabled={busy} onClick={send}>
+              {busy ? 'Waiting for AI…' : 'Send to Featherless'}
+            </button>
+            <button disabled={busy} className="link" onClick={() => setContext('')}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+      {error && <p role="alert" className="error">{error}</p>}
+      {explanation && (
+        <div>
+          <h3>Explanation from the selected code</h3>
+          {explanation.note && <p className="warn">{explanation.note}</p>}
+          <ul>
+            {explanation.points.map((p, i) => (
+              <li key={i}>
+                {p.text}{' '}
+                {p.evidence.map((c) => (
+                  <code key={c.id} className="cite">
+                    [{c.id}] {c.path}:{c.start_line}–{c.end_line}
+                    {c.is_test && ' (test)'}
+                  </code>
+                ))}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {general && (
+        <div>
+          <h3>General answer — not based on this repository</h3>
+          <p className="general">{general}</p>
+        </div>
+      )}
     </section>
   )
 }
