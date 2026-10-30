@@ -51,6 +51,7 @@ def test_detects_test_paths_across_languages(path, expected):
 def test_upload_publishes_searchable_snapshot_with_exact_source(settings, client):
     summary = upload(client, {"repo/auth.py": AUTH, "repo/tests/test_auth.py": "x = 1\n"}).json()
     assert summary["files"] == 2 and summary["name"] == "repo.zip"
+    assert summary["languages"] == ["Python"] and summary["definitions"] == 1
     assert client.get("/api/status").json()["snapshot"] == summary
 
     sid = summary["snapshot_id"]
@@ -65,6 +66,11 @@ def test_upload_publishes_searchable_snapshot_with_exact_source(settings, client
     source = client.get(f"/api/snapshots/{sid}/files/1").json()
     assert source == {"id": 1, "path": "auth.py", "text": AUTH, "is_test": False}
     assert client.get(f"/api/snapshots/{sid}/files/99").status_code == 404
+
+
+def test_definitions_count_split_functions_and_classes_once(client):
+    body = "def long():\n" + "    x = 1\n" * 300 + "\n\nclass A:\n    def m(self):\n        pass\n"
+    assert upload(client, {"a.py": body}).json()["definitions"] == 3
 
 
 def test_failed_replacement_keeps_current_snapshot(client):
@@ -135,7 +141,7 @@ def test_failed_publish_leaves_no_partial_state(settings, monkeypatch):
 def test_snapshot_from_older_schema_is_discarded(settings, client):
     upload(client, {"a.py": "x = 1\n"})
     pointer = settings.state_dir / "current.json"
-    pointer.write_text(pointer.read_text().replace('"schema": 2', '"schema": 1'))
+    pointer.write_text(pointer.read_text().replace('"schema": 3', '"schema": 2'))
     store = Store(settings.state_dir)
     assert store.current is None
     assert list(store.dir.iterdir()) == []

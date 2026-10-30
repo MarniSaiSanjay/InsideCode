@@ -11,7 +11,8 @@ export type Snapshot = {
   name: string
   files: number
   chunks: number
-  skipped: Record<string, number>
+  definitions: number
+  languages: string[]
 }
 
 export type Status = { importing: boolean; snapshot: Snapshot | null }
@@ -59,12 +60,27 @@ export function post<T>(path: string, body: unknown): Promise<T> {
   return api<T>(path, { method: 'POST', headers, body: JSON.stringify(body) })
 }
 
+function failure(status: number, body: { detail?: unknown } | null): Error {
+  return new Error(typeof body?.detail === 'string' ? body.detail : `Request failed (${status})`)
+}
+
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`/api${path}`, init)
   const body = await response.json().catch(() => ({}))
-  if (!response.ok) {
-    const detail = typeof body.detail === 'string' ? body.detail : undefined
-    throw new Error(detail ?? `Request failed (${response.status})`)
-  }
+  if (!response.ok) throw failure(response.status, body)
   return body as T
+}
+
+// XHR rather than fetch so we know when the ZIP is sent and the server starts indexing.
+export function uploadSnapshot(body: FormData, onSent: () => void): Promise<Snapshot> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', '/api/snapshots')
+    xhr.responseType = 'json'
+    xhr.upload.onload = onSent
+    xhr.onload = () =>
+      xhr.status >= 200 && xhr.status < 300 ? resolve(xhr.response) : reject(failure(xhr.status, xhr.response))
+    xhr.onerror = () => reject(new Error('Upload failed: network error'))
+    xhr.send(body)
+  })
 }

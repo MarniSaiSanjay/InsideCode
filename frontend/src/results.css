@@ -1,22 +1,20 @@
-/* Syntax colours for the tiny Python highlighter (the only hard-coded colours). */
+/* Syntax colours for the tiny highlighter (the only hard-coded colours). */
 :root {
-  --syn-kw: #8a3ffc;
-  --syn-str: #0a7a4f;
+  --syn-kw: #7c3aed;
+  --syn-str: #0a7650;
   --syn-com: #6b7280;
-  --syn-num: #b25000;
-  --syn-fn: #0b62d6;
-  --syn-dec: #a8357a;
+  --syn-num: #b4540a;
+  --syn-fn: #1d5fd1;
+  --syn-dec: #b0306f;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --syn-kw: #c4a7ff;
-    --syn-str: #7ee0a6;
-    --syn-com: #7d8799;
-    --syn-num: #f5a35c;
-    --syn-fn: #7cb7ff;
-    --syn-dec: #f290c4;
-  }
+:root[data-theme='dark'] {
+  --syn-kw: #c4a7ff;
+  --syn-str: #86e1a9;
+  --syn-com: #7f8796;
+  --syn-num: #f7ae6b;
+  --syn-fn: #82b8ff;
+  --syn-dec: #f49ac9;
 }
 
 /* ---------- Results header ---------- */
@@ -25,17 +23,17 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px 12px;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: 14px;
 }
 
 .ev-head h2 {
   margin: 0;
-  font-size: 1.05rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
   color: var(--text);
+  font-size: 1.15rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
 }
 
 .ev-q {
@@ -49,7 +47,7 @@
   flex-wrap: wrap;
   gap: 6px;
   align-items: center;
-  margin: 0 0 14px;
+  margin: 0 0 16px;
   color: var(--muted);
   font-size: 0.85rem;
 }
@@ -67,9 +65,9 @@
 /* ---------- Empty state ---------- */
 
 .ev-empty {
+  display: grid;
   justify-items: center;
-  padding: 32px 20px;
-  border-style: dashed;
+  padding: 40px 20px;
   background: var(--surface);
   text-align: center;
 }
@@ -77,10 +75,11 @@
 .ev-empty-icon {
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
-  margin-bottom: 8px;
-  border-radius: 10px;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
   background: var(--surface-2);
   color: var(--muted);
 }
@@ -92,8 +91,8 @@
 
 .ev-empty-title {
   margin: 0 0 4px;
-  font-weight: 600;
   color: var(--text);
+  font-weight: 600;
   overflow-wrap: anywhere;
 }
 
@@ -102,31 +101,56 @@
   margin: 0 auto;
 }
 
-/* ---------- Evidence cards ---------- */
+/* ---------- Evidence trail: ranked cards hang off one thread ---------- */
 
 .ev-list {
+  --gutter: 44px;
+  position: relative;
   display: grid;
-  gap: 12px;
-  margin: 0 0 20px;
-  padding: 0;
+  gap: 14px;
+  margin: 0 0 24px;
+  padding: 0 0 0 var(--gutter);
   list-style: none;
 }
 
+.ev-list::before {
+  position: absolute;
+  top: 26px;
+  bottom: 26px;
+  left: 13px;
+  width: 2px;
+  border-radius: 2px;
+  background: linear-gradient(var(--grad-from), var(--grad-to) 40%, var(--border) 85%);
+  content: '';
+  opacity: 0.6;
+}
+
 .ev-card {
+  position: relative;
   min-width: 0;
-  padding: 14px 16px 12px;
+  padding: 16px 18px 14px;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   background: var(--surface);
-  scroll-margin: 24px;
+  box-shadow: var(--shadow-sm), var(--edge);
+  scroll-margin: 96px;
   transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease;
+    border-color 0.2s,
+    box-shadow 0.25s var(--ease);
+  animation: rise 0.45s var(--ease) both;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
 }
 
 .ev-card:hover {
-  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
-  box-shadow: var(--shadow);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow), var(--edge);
 }
 
 .ev-card:focus {
@@ -139,63 +163,130 @@
 }
 
 .ev-top {
-  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
-  box-shadow: var(--shadow);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--accent) 7%, transparent),
+    var(--shadow);
 }
 
-.ev-flash {
-  animation: ev-flash 1.6s ease-out;
+/* Keep `rise` in the list so adding the flash does not replay the entrance. */
+.ev-card.ev-flash {
+  animation:
+    rise 0.45s var(--ease) both,
+    ev-flash 1.8s ease-out;
 }
 
 @keyframes ev-flash {
   0%,
-  35% {
+  40% {
     border-color: var(--accent);
-    box-shadow: 0 0 0 4px var(--accent-soft);
+    box-shadow:
+      0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent),
+      0 0 32px 4px color-mix(in srgb, var(--grad-to) 30%, transparent);
   }
 }
 
 .ev-card-head {
   display: flex;
   gap: 10px;
-  align-items: center;
+  align-items: flex-start;
   min-width: 0;
 }
 
+/* The rank badge sits on the thread, outside the card. */
 .ev-rank {
+  position: absolute;
+  top: 14px;
+  left: calc(-1 * var(--gutter) - 1px);
   display: grid;
-  flex: none;
   place-items: center;
-  min-width: 22px;
-  height: 22px;
-  padding: 0 4px;
+  width: 28px;
+  height: 28px;
   box-sizing: border-box;
-  border-radius: 6px;
-  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--surface);
   color: var(--muted);
-  font: 600 0.75rem/1 var(--mono);
+  font: 650 0.75rem/1 var(--mono);
+  box-shadow: 0 0 0 4px var(--bg);
 }
 
 .ev-top .ev-rank {
-  background: var(--accent);
-  color: var(--accent-text);
+  border-color: transparent;
+  background: var(--gradient);
+  color: #fff;
+  box-shadow:
+    0 0 0 4px var(--bg),
+    0 0 18px 2px color-mix(in srgb, var(--grad-to) 45%, transparent);
 }
 
-.ev-path {
+.ev-title {
+  display: grid;
   flex: 1;
+  gap: 4px;
   min-width: 0;
-  font: 0.85rem/1.4 var(--mono);
+}
+
+.ev-name,
+.ev-loc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  align-items: center;
+  min-width: 0;
+  margin: 0;
+}
+
+.ev-symbol {
+  min-width: 0;
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
   overflow-wrap: anywhere;
 }
 
-.ev-dir,
+.ev-kind,
+.ev-lang,
 .ev-range {
+  padding: 0 7px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1.7;
+  white-space: nowrap;
+}
+
+.ev-kind {
+  background: var(--accent-soft);
+  color: var(--accent);
+  text-transform: capitalize;
+}
+
+.ev-lang {
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.ev-path {
+  min-width: 0;
+  font: 0.8rem/1.45 var(--mono);
+  overflow-wrap: anywhere;
+}
+
+.ev-dir {
   color: var(--muted);
 }
 
 .ev-file {
-  font-weight: 650;
   color: var(--text);
+}
+
+.ev-range {
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: var(--mono);
+  font-weight: 550;
 }
 
 .ev-label {
@@ -204,13 +295,15 @@
   border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
   border-radius: 6px;
   color: var(--accent);
-  font: 600 0.72rem/1.5 var(--mono);
+  font: 650 0.72rem/1.5 var(--mono);
 }
 
 .ev-copied {
   flex: none;
   color: var(--ok);
   font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 24px;
 }
 
 .ev-copied:empty {
@@ -223,10 +316,12 @@
   place-items: center;
   width: 28px;
   height: 28px;
+  margin-top: -3px;
   padding: 0;
   border: 1px solid transparent;
   border-radius: 7px;
   background: transparent;
+  box-shadow: none;
   color: var(--muted);
 }
 
@@ -240,7 +335,11 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin: 8px 0 10px 32px;
+  margin: 10px 0 12px;
+}
+
+.ev-meta:empty {
+  display: none;
 }
 
 .ev-tag {
@@ -257,16 +356,7 @@
   padding: 1px 8px;
   font-size: 0.72rem;
   font-weight: 600;
-}
-
-.ev-symbol {
-  max-width: 100%;
-  overflow: hidden;
-  border-radius: 6px;
-  background: var(--surface-2);
-  color: var(--text);
-  font-family: var(--mono);
-  text-overflow: ellipsis;
+  box-shadow: none;
 }
 
 .ev-test {
@@ -284,17 +374,24 @@
   flex-wrap: wrap;
   gap: 10px;
   align-items: center;
-  margin-top: 10px;
+  margin-top: 12px;
 }
 
 .ev-btn {
   gap: 6px;
-  padding: 4px 10px;
+  padding: 5px 10px;
   font-size: 0.8rem;
 }
 
 .ev-btn .icon {
   color: var(--muted);
+}
+
+.ev-loading {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.82rem;
 }
 
 .ev-card .ev-error {
@@ -309,12 +406,12 @@
   margin: 0;
   overflow: auto;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--code-bg);
   color: var(--text);
-  font: 12.5px/1.6 var(--mono);
+  font: 12.5px/1.65 var(--mono);
   scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
+  scrollbar-color: var(--border-strong) transparent;
 }
 
 .ev-code.full {
@@ -331,13 +428,13 @@
 .ai-context::-webkit-scrollbar-thumb {
   border: 3px solid transparent;
   border-radius: 999px;
-  background: var(--border) padding-box;
+  background: var(--border-strong) padding-box;
 }
 
 .ev-code-inner {
   display: inline-block;
   min-width: 100%;
-  padding: 8px 0;
+  padding: 10px 0;
   box-sizing: border-box;
   font: inherit;
 }
@@ -357,22 +454,36 @@
   left: 0;
   display: inline-block;
   width: 4.5em;
-  margin-right: 14px;
+  margin-right: 16px;
   padding-right: 12px;
   box-sizing: border-box;
   border-right: 1px solid var(--border);
   background: var(--code-bg);
-  color: var(--muted);
+  color: color-mix(in srgb, var(--muted) 75%, transparent);
   text-align: right;
-  opacity: 0.75;
   user-select: none;
 }
 
+/* Matched lines get a glowing marker in the gutter. */
 .ev-hl .ev-n {
+  border-right-color: var(--accent);
   background: var(--hl);
-  box-shadow: inset 3px 0 var(--accent);
+  box-shadow:
+    inset 3px 0 var(--accent),
+    1px 0 8px -2px var(--accent);
   color: var(--text);
-  opacity: 1;
+}
+
+/* The line under the pointer lights up its number too. */
+.ev-line:hover,
+.ev-line:hover .ev-n {
+  background: color-mix(in srgb, var(--accent) 8%, var(--code-bg));
+}
+
+.ev-line:hover .ev-n {
+  border-right-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .t-kw {
@@ -404,20 +515,29 @@
 /* ---------- AI panel ---------- */
 
 .ai {
-  margin-top: 8px;
-  padding: 18px 20px;
-  border: 1px solid transparent;
-  border-radius: var(--radius);
+  position: relative;
+  padding: 20px 22px;
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-lg);
   background:
     linear-gradient(var(--surface), var(--surface)) padding-box,
     linear-gradient(
-        135deg,
-        var(--accent),
-        color-mix(in srgb, var(--accent) 15%, var(--border)) 55%,
-        var(--border)
+        120deg,
+        var(--grad-from),
+        var(--grad-to) 30%,
+        var(--border) 60%,
+        var(--border) 80%,
+        var(--grad-from)
       )
-      border-box;
-  box-shadow: var(--shadow);
+      0 0 / 300% 100% border-box;
+  box-shadow:
+    0 12px 40px -20px color-mix(in srgb, var(--grad-to) 50%, transparent),
+    var(--shadow);
+}
+
+/* While the AI works, the gradient border flows around the panel. */
+.ai-busy {
+  animation: flow 2.4s linear infinite;
 }
 
 .ai-head {
@@ -430,24 +550,40 @@
   display: grid;
   flex: none;
   place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 9px;
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-size: 1.05rem;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--gradient);
+  color: #fff;
+  box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--grad-to) 70%, transparent);
+}
+
+.ai-icon .icon {
+  width: 18px;
+  height: 18px;
 }
 
 .ai-head h2 {
+  display: flex;
+  gap: 8px;
+  align-items: center;
   margin: 0 0 2px;
-  font-size: 1rem;
-  font-weight: 600;
   color: var(--text);
+  font-size: 1.05rem;
+  font-weight: 650;
+  letter-spacing: -0.015em;
 }
 
-.ai-optional {
+.ai-badge {
+  padding: 0 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
   color: var(--muted);
-  font-weight: 400;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.7;
+  text-transform: uppercase;
 }
 
 .ai-privacy {
@@ -465,7 +601,7 @@
 
 .ai-actions {
   align-items: center;
-  margin-top: 14px;
+  margin-top: 16px;
 }
 
 .ai-hint {
@@ -475,20 +611,21 @@
 
 .ai-step {
   margin-top: 16px;
-  padding: 12px;
+  padding: 14px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius);
   background: var(--surface-2);
+  animation: fade-in 0.25s var(--ease);
 }
 
 .ai-label {
   display: flex;
   gap: 6px;
   align-items: center;
-  margin: 0 0 8px;
+  margin: 0 0 10px;
+  color: var(--text);
   font-size: 0.85rem;
   font-weight: 600;
-  color: var(--text);
 }
 
 .ai-label .icon {
@@ -496,30 +633,36 @@
 }
 
 .ai-step .ai-actions {
-  margin-top: 10px;
+  margin-top: 12px;
 }
 
 .ai-context {
   max-height: 260px;
   margin: 0;
-  padding: 10px 12px;
+  padding: 12px 14px;
   overflow: auto;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: var(--code-bg);
   color: var(--text);
-  font: 12px/1.5 var(--mono);
+  font: 12px/1.55 var(--mono);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
+  scrollbar-color: var(--border-strong) transparent;
 }
 
 .ai-wait {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.ai-wait p {
   display: flex;
   gap: 8px;
   align-items: center;
-  margin: 14px 0 0;
+  margin: 0;
   color: var(--muted);
   font-size: 0.85rem;
 }
@@ -529,31 +672,32 @@
 }
 
 .ai .ai-error {
-  margin-top: 12px;
+  margin-top: 14px;
 }
 
 .ai-result {
-  margin-top: 18px;
-  padding-top: 14px;
+  margin-top: 20px;
+  padding-top: 16px;
   border-top: 1px solid var(--border);
+  animation: fade-in 0.3s var(--ease);
 }
 
 .ai-result h3 {
-  margin: 0 0 10px;
-  font-size: 0.9rem;
-  font-weight: 600;
+  margin: 0 0 12px;
   color: var(--text);
+  font-size: 0.92rem;
+  font-weight: 650;
 }
 
 .ai-callout {
   display: flex;
   gap: 8px;
   align-items: baseline;
-  margin: 0 0 12px;
-  padding: 9px 12px;
+  margin: 0 0 14px;
+  padding: 10px 12px;
   border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--warn) 10%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--warn) 9%, transparent);
   color: var(--warn);
   font-size: 0.85rem;
 }
@@ -565,7 +709,7 @@
 
 .ai-points {
   display: grid;
-  gap: 12px;
+  gap: 14px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -573,24 +717,25 @@
 
 .ai-points li {
   position: relative;
-  padding-left: 16px;
+  padding-left: 18px;
 }
 
 .ai-points li::before {
   position: absolute;
-  top: 0.6em;
+  top: 0.55em;
   left: 2px;
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--gradient);
   content: '';
 }
 
 .ai-points p {
-  margin: 0 0 6px;
-  line-height: 1.55;
+  margin: 0 0 8px;
   color: var(--text);
+  font-size: 0.95rem;
+  line-height: 1.65;
 }
 
 .ai-cites {
@@ -600,39 +745,68 @@
 }
 
 .ai-cite {
-  display: inline-block;
+  display: inline-flex;
+  gap: 0;
+  align-items: stretch;
   max-width: 100%;
-  padding: 2px 8px;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  background: var(--accent-soft);
-  color: var(--accent);
-  font: 0.75rem/1.6 var(--mono);
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text);
+  font: 0.74rem/1.7 var(--mono);
   text-align: left;
+}
+
+.ai-cite b {
+  display: grid;
+  flex: none;
+  place-items: center;
+  padding: 0 7px;
+  background: var(--gradient);
+  color: #fff;
+  font-weight: 700;
+}
+
+.ai-cite span {
+  min-width: 0;
+  padding: 0 8px;
   overflow-wrap: anywhere;
 }
 
 .ai-cite:hover:not(:disabled) {
-  background: var(--accent-soft);
   border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: 0 4px 14px -6px color-mix(in srgb, var(--grad-to) 60%, transparent);
 }
 
 .ai-general {
   margin: 0;
-  line-height: 1.6;
   color: var(--text);
+  line-height: 1.65;
   white-space: pre-wrap;
 }
 
 /* ---------- Small screens ---------- */
 
 @media (width <= 520px) {
-  .ev-card {
-    padding: 12px;
+  .ev-list {
+    --gutter: 30px;
   }
 
-  .ev-meta {
-    margin-left: 0;
+  .ev-list::before {
+    left: 10px;
+  }
+
+  .ev-rank {
+    width: 22px;
+    height: 22px;
+    font-size: 0.7rem;
+  }
+
+  .ev-card {
+    padding: 12px;
   }
 
   .ev-n {
@@ -642,7 +816,7 @@
   }
 
   .ai {
-    padding: 14px;
+    padding: 16px;
   }
 
   .ai-actions button:not(.link) {

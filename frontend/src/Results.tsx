@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { api, post, type Explanation, type Result, type SearchResponse, type Source } from './api'
 import './results.css'
 
@@ -74,6 +74,12 @@ export default function Results({ search, aiReady, onError }: ResultsProps) {
 
 const MAX_EVIDENCE = 5
 
+const LANGS: Record<string, string> = {
+  py: 'Python', js: 'JavaScript', jsx: 'JavaScript', mjs: 'JavaScript', cjs: 'JavaScript',
+  ts: 'TypeScript', tsx: 'TypeScript', mts: 'TypeScript', cts: 'TypeScript', java: 'Java',
+  kt: 'Kotlin', kts: 'Kotlin', go: 'Go', php: 'PHP', swift: 'Swift', rb: 'Ruby',
+}
+
 // Small inline icons (24×24 stroke paths); always decorative.
 const SPARKLE = 'M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z'
 const COPY = 'M9 9h11v11H9zM5 15H4V4h11v1'
@@ -139,14 +145,14 @@ function AIPanel({ search }: { search: SearchResponse }) {
     call<{ answer: string }>('/general', { question: search.query }, (r) => setGeneral(r.answer))
 
   return (
-    <section aria-label="AI help" className="ai">
+    <section aria-label="AI help" className={busy ? 'ai ai-busy' : 'ai'}>
       <header className="ai-head">
         <span className="ai-icon">
           <Icon d={SPARKLE} />
         </span>
         <div>
           <h2>
-            AI help <span className="ai-optional">(optional)</span>
+            AI help <span className="ai-badge">Optional</span>
           </h2>
           <p className="muted hint ai-privacy">
             <Icon d={LOCK} />
@@ -185,14 +191,19 @@ function AIPanel({ search }: { search: SearchResponse }) {
         </div>
       )}
       {busy && (
-        <p className="ai-wait" role="status">
-          <span className="spinner" aria-hidden="true" />
-          {busy}
-        </p>
+        <div className="ai-wait">
+          <p role="status">
+            <span className="spinner" aria-hidden="true" />
+            {busy}
+          </p>
+          <span className="skeleton-bar w-90" />
+          <span className="skeleton-bar w-70" />
+        </div>
       )}
       {error && (
         <p role="alert" className="banner error ai-error">
-          {error}
+          <Icon d={WARN} />
+          <span>{error}</span>
         </p>
       )}
       {explanation && (
@@ -217,8 +228,11 @@ function AIPanel({ search }: { search: SearchResponse }) {
                       title="Jump to this evidence"
                       onClick={() => jumpTo(c.chunk_id)}
                     >
-                      <b>[{c.id}]</b> {c.path}:{c.start_line}–{c.end_line}
-                      {c.is_test && ' (test)'}
+                      <b>{c.id}</b>
+                      <span>
+                        {c.path}:{c.start_line}–{c.end_line}
+                        {c.is_test && ' (test)'}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -267,6 +281,8 @@ function EvidenceCard({ result, rank, label, snapshotId, onError }: CardProps) {
   const [error, setError] = useState('')
   const lines: [number, number] = [result.start_line, result.end_line]
   const slash = result.path.lastIndexOf('/') + 1
+  const file = result.path.slice(slash)
+  const lang = LANGS[file.slice(file.lastIndexOf('.') + 1).toLowerCase()]
 
   function toggle() {
     setOpen(!open)
@@ -279,18 +295,32 @@ function EvidenceCard({ result, rank, label, snapshotId, onError }: CardProps) {
   }
 
   return (
-    <li className={rank === 1 ? 'ev-card ev-top' : 'ev-card'} id={`ev-${result.id}`} tabIndex={-1}>
+    <li
+      className={rank === 1 ? 'ev-card ev-top' : 'ev-card'}
+      id={`ev-${result.id}`}
+      tabIndex={-1}
+      style={{ '--i': Math.min(rank, 8) } as CSSProperties}
+    >
       <div className="ev-card-head">
         <span className="ev-rank" aria-hidden="true">
           {rank}
         </span>
-        <code className="ev-path" title={result.path}>
-          <span className="ev-dir">{result.path.slice(0, slash)}</span>
-          <span className="ev-file">{result.path.slice(slash)}</span>
-          <span className="ev-range">
-            :{result.start_line}–{result.end_line}
-          </span>
-        </code>
+        <div className="ev-title">
+          <p className="ev-name">
+            <code className="ev-symbol">{result.symbol ?? file}</code>
+            <span className="ev-kind">{result.kind}</span>
+            {lang && <span className="ev-lang">{lang}</span>}
+          </p>
+          <p className="ev-loc">
+            <code className="ev-path" title={result.path}>
+              <span className="ev-dir">{result.path.slice(0, slash)}</span>
+              <span className="ev-file">{file}</span>
+            </code>
+            <span className="ev-range" title={`Lines ${result.start_line} to ${result.end_line}`}>
+              L{result.start_line}–{result.end_line}
+            </span>
+          </p>
+        </div>
         {label && (
           <span className="ev-label" title="Label used in AI citations">
             {label}
@@ -300,7 +330,6 @@ function EvidenceCard({ result, rank, label, snapshotId, onError }: CardProps) {
       </div>
       <div className="ev-meta">
         {rank === 1 && <span className="pill accent ev-best">Top match</span>}
-        {result.symbol && <code className="ev-tag ev-symbol">{result.symbol}</code>}
         {result.is_test && <span className="ev-tag ev-test">test</span>}
         {result.reasons.map((r) => (
           <span key={r} className="ev-tag ev-reason">
@@ -318,7 +347,11 @@ function EvidenceCard({ result, rank, label, snapshotId, onError }: CardProps) {
           <Icon d={open ? COLLAPSE : EXPAND} />
           {open ? 'Show snippet only' : 'Show in full file'}
         </button>
-        {open && !source && !error && <span className="muted">Loading file…</span>}
+        {open && !source && !error && (
+          <span className="muted ev-loading">
+            <span className="spinner" aria-hidden="true" /> Loading file…
+          </span>
+        )}
       </div>
       {open && error && (
         <p role="alert" className="banner error ev-error">

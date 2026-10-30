@@ -10,9 +10,9 @@ from pathlib import Path
 
 from .config import Limits
 from .indexing import Deadline, ImportRejected, SourceFile, chunk_file, read_zip
-from .languages import is_test_path
+from .languages import is_test_path, language_for
 
-SCHEMA_VERSION = 2  # bump when SCHEMA changes; older snapshots are then discarded
+SCHEMA_VERSION = 3  # bump when SCHEMA or the summary changes; older snapshots are then discarded
 SCHEMA = """
 CREATE TABLE files (
     id INTEGER PRIMARY KEY, path TEXT NOT NULL UNIQUE, text TEXT NOT NULL,
@@ -56,7 +56,8 @@ def symbol_name(symbol: str | None) -> str | None:
     return symbol.rsplit(".", 1)[-1].lower() if symbol else None
 
 
-def _build(path: Path, files: list[SourceFile], deadline: Deadline) -> int:
+def _build(path: Path, files: list[SourceFile], deadline: Deadline) -> tuple[int, int]:
+    """Index files; return (chunks, definitions), counting each named function or class once."""
     count = 0
     with closing(sqlite3.connect(path)) as db:
         db.executescript(SCHEMA)
@@ -92,8 +93,13 @@ def _build(path: Path, files: list[SourceFile], deadline: Deadline) -> int:
                     ),
                 )
                 count += 1
+        # Long definitions are split into several chunks that share a symbol.
+        (definitions,) = db.execute(
+            "SELECT COUNT(*) FROM (SELECT DISTINCT file_id, symbol FROM chunks"
+            " WHERE kind IN ('function', 'class') AND symbol IS NOT NULL)"
+        ).fetchone()
         db.commit()
-    return count
+    return count, definitions
 
 
 class Store:
@@ -134,7 +140,7 @@ class Store:
             snapshot_id = secrets.token_hex(8)
             final = self._db_path(snapshot_id)
             temp = final.with_suffix(".tmp")
-            chunk_count = _build(temp, contents.files, deadline)
+            chunk_count, definitions = _build(temp, contents.files, deadline)
             deadline.check()
             os.replace(temp, final)
             summary = {
@@ -143,6 +149,8 @@ class Store:
                 "name": name,
                 "files": len(contents.files),
                 "chunks": chunk_count,
+                "definitions": definitions,
+                "languages": sorted({language_for(file.path).name for file in contents.files}),
                 "skipped": dict(contents.skipped),
             }
             # Staged in snapshots/ so the cleanup below also removes it if publishing fails.

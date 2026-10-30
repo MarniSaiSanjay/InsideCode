@@ -127,7 +127,7 @@ cd ../frontend && npm run build && npm run lint
 
 ## Demo (under three minutes)
 
-1. Upload the Flask ZIP; the summary shows files indexed and skipped.
+1. Upload the Flask ZIP; the summary shows files, code regions, functions & classes and languages indexed.
 2. Ask *"Where is the session cookie signed and loaded?"*; `sessions.py` comes first.
 3. Open it in the full file to verify the highlighted lines.
 4. Ask *"How are payments processed with Stripe?"*; only weak matches appear.
