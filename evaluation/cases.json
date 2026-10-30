@@ -146,11 +146,43 @@
         {"path": "src/flask/sansio/scaffold.py", "symbol": "Scaffold.errorhandler"},
         {"path": "src/flask/sansio/scaffold.py", "symbol": "Scaffold.register_error_handler"}
       ]
+    },
+    {
+      "id": "teardown",
+      "split": "heldout",
+      "kind": "feature",
+      "question": "Where are teardown functions called after a request finishes?",
+      "expected": [
+        {"path": "src/flask/app.py", "symbol": "Flask.do_teardown_request"}
+      ]
+    },
+    {
+      "id": "test-client-open",
+      "split": "heldout",
+      "kind": "relationship",
+      "question": "How does the test client send a request to the app?",
+      "expected": [
+        {"path": "src/flask/testing.py", "symbol": "FlaskClient.open"}
+      ]
+    },
+    {
+      "id": "tutorial-delete",
+      "split": "heldout",
+      "kind": "small-change",
+      "question": "Where does the tutorial blog delete a post?",
+      "expected": [
+        {"path": "examples/tutorial/flaskr/blog.py", "symbol": "delete"}
+      ]
     }
   ],
   "negatives": [
     "Where is the GraphQL schema defined?",
     "How are payments processed with Stripe?",
-    "Where does the app publish messages to Kafka?"
+    "Where does the app publish messages to Kafka?",
+    "How does the app send email over SMTP?",
+    "Where are WebSocket connections handled?",
+    "Where are uploaded images resized into thumbnails?",
+    "Where is rate limiting applied to login attempts?",
+    "How do users reset a forgotten password by email?"
   ]
 }

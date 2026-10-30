@@ -66,6 +66,9 @@ export FEATHERLESS_API_KEY=...        # kept on the backend only
 export FEATHERLESS_MODEL=...          # any Featherless chat model
 ```
 
+Any OpenAI-compatible endpoint works through `FEATHERLESS_BASE_URL`, e.g. Azure OpenAI
+with `https://<resource>.openai.azure.com/openai/v1` and the deployment name as the model.
+
 For frontend development, run `npx vite` in `frontend/` (it proxies `/api` to port 8723).
 
 ## Limits
@@ -79,17 +82,24 @@ For frontend development, run `npx vite` in `frontend/` (it proxies `/api` to po
 ## Evaluation
 
 Frozen public repository: [pallets/flask](https://github.com/pallets/flask) at
-`49943b5`, 14 manually labelled questions (10 dev, 4 held out from tuning) plus 3
-negative questions. Hit@5 = a correct location is among the first five results.
+`49943b5`, 17 manually labelled questions (10 dev, 7 held out from tuning) plus 8
+negative questions about things Flask does not contain. Hit@5 = a correct location is
+among the first five results.
 
-| Split | Keyword only | Hybrid (default) |
-|-------|--------------|------------------|
-| Dev (10) | 9/10 | **10/10** |
-| Held out (4) | 4/4 | **4/4** |
+| Split | Keyword only | Hybrid (default) | Hybrid + AI terms |
+|-------|--------------|------------------|-------------------|
+| Dev (10) | 9/10 | **10/10** | 9/10 |
+| Held out (7) | 6/7 | **6/7** | 5/7 |
 
-Indexing: 83 files and 1,035 code regions in 0.08 s; slowest search 0.8 ms
-(Apple Silicon, Python 3.12). For negative questions (GraphQL, Stripe, Kafka) only weak
-partial matches appear, and the AI explanation must report insufficient evidence.
+Indexing: 83 files and 1,035 code regions in 0.09 s; slowest search 7.9 ms
+(Apple Silicon, Python 3.12). Misses: the test client question ranks
+`FlaskClient.open` 10th. AI terms (`gpt-4o-mini`) put 13 of 17 answers first but pushed
+two below rank 5, so they stay optional.
+
+AI explanations (`gpt-4o-mini`, top 5 results, checked by hand): all 17 positive
+questions were answered with correct citations, and all 8 negatives reported
+insufficient evidence. When a question names something (e.g. GraphQL) that no snippet
+contains, the context says so, which stops the model guessing from look-alike code.
 Full per-question ranks: `evaluation/results.json`.
 
 Reproduce from the repository root:

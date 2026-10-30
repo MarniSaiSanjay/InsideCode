@@ -1,6 +1,6 @@
 # Brahmaniss - Simple Implementation Plan
 
-**Status:** Tasks 1-9 done; the real Featherless call still needs verification with a key. See `spec.md` for requirements and checks.
+**Status:** Tasks 1-9 done and verified with a real OpenAI-compatible model (`gpt-4o-mini`). See `spec.md` for requirements and checks.
 
 ## 1. Architecture
 

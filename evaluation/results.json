@@ -7,17 +7,19 @@
   "index": {
     "files": 83,
     "chunks": 1035,
-    "seconds": 0.08
+    "seconds": 0.09
   },
-  "max_search_ms": 0.8,
+  "max_search_ms": 7.9,
   "hit_at_5": {
     "dev": {
       "keyword": "9/10",
-      "hybrid": "10/10"
+      "hybrid": "10/10",
+      "expanded": "9/10"
     },
     "heldout": {
-      "keyword": "4/4",
-      "hybrid": "4/4"
+      "keyword": "6/7",
+      "hybrid": "6/7",
+      "expanded": "5/7"
     }
   },
   "cases": [
@@ -25,85 +27,256 @@
       "split": "dev",
       "question": "Where is the session cookie signed and loaded?",
       "keyword": 1,
-      "hybrid": 1
+      "hybrid": 1,
+      "suggested": [
+        "load_cookie",
+        "sign_cookie",
+        "SessionMiddleware",
+        "secure_cookie",
+        "get_cookie",
+        "set_cookie"
+      ],
+      "expanded": 1
     },
     {
       "split": "dev",
       "question": "Where is url_for defined?",
       "keyword": 8,
-      "hybrid": 1
+      "hybrid": 1,
+      "suggested": [
+        "url_for",
+        "flask",
+        "Flask",
+        "Blueprint",
+        "routing",
+        "werkzeug"
+      ],
+      "expanded": 1
     },
     {
       "split": "dev",
       "question": "How are flashed messages stored and retrieved?",
       "keyword": 1,
-      "hybrid": 1
+      "hybrid": 1,
+      "suggested": [
+        "flash",
+        "get_flashed_messages",
+        "session",
+        "message",
+        "store_flash_message",
+        "retrieve_flash_message"
+      ],
+      "expanded": 1
     },
     {
       "split": "dev",
       "question": "Where is configuration loaded from environment variables with a prefix?",
       "keyword": 2,
-      "hybrid": 2
+      "hybrid": 2,
+      "suggested": [
+        "load_config",
+        "env_prefix",
+        "get_env_variable",
+        "ConfigLoader",
+        "load_from_env",
+        "environment_variables"
+      ],
+      "expanded": 1
     },
     {
       "split": "dev",
       "question": "How does a blueprint get registered on the application?",
       "keyword": 1,
-      "hybrid": 1
+      "hybrid": 1,
+      "suggested": [
+        "register_blueprint",
+        "Blueprint",
+        "app",
+        "url_prefix",
+        "add_url_rule",
+        "create_app"
+      ],
+      "expanded": 1
     },
     {
       "split": "dev",
       "question": "Where are unhandled exceptions turned into a 500 internal server error?",
       "keyword": 1,
-      "hybrid": 1
+      "hybrid": 1,
+      "suggested": [
+        "handle_exception",
+        "error_handler",
+        "internal_server_error",
+        "app_errorhandler",
+        "exception_handler",
+        "log_exception"
+      ],
+      "expanded": 1
     },
     {
       "split": "dev",
       "question": "Where should I start reading to change how the login form checks the password?",
       "keyword": 1,
-      "hybrid": 1
+      "hybrid": 1,
+      "suggested": [
+        "check_password",
+        "login_form",
+        "authenticate_user",
+        "validate_credentials",
+        "password_hash",
+        "user_model"
+      ],
+      "expanded": 1
     },
     {
       "split": "dev",
       "question": "How does the command line find the application in a module?",
       "keyword": 1,
-      "hybrid": 2
+      "hybrid": 2,
+      "suggested": [
+        "sys",
+        "argv",
+        "importlib",
+        "module",
+        "runpy",
+        "main"
+      ],
+      "expanded": 7
     },
     {
       "split": "dev",
       "question": "Where is the request dispatched to the view function?",
       "keyword": 3,
-      "hybrid": 3
+      "hybrid": 3,
+      "suggested": [
+        "dispatch_request",
+        "view_function",
+        "Flask",
+        "route",
+        "app",
+        "url_for"
+      ],
+      "expanded": 2
     },
     {
       "split": "dev",
       "question": "How does the tutorial app initialize the database?",
       "keyword": 1,
-      "hybrid": 4
+      "hybrid": 4,
+      "suggested": [
+        "initialize_database",
+        "create_tables",
+        "db_session",
+        "setup_database",
+        "connect_to_db",
+        "DatabaseManager"
+      ],
+      "expanded": 1
     },
     {
       "split": "heldout",
       "question": "Where is the logged in user loaded before each request?",
       "keyword": 1,
-      "hybrid": 1
+      "hybrid": 1,
+      "suggested": [
+        "load_user",
+        "before_request",
+        "current_user",
+        "get_user",
+        "user_loader",
+        "session"
+      ],
+      "expanded": 1
     },
     {
       "split": "heldout",
       "question": "How are files safely sent from a directory?",
       "keyword": 1,
-      "hybrid": 1
+      "hybrid": 1,
+      "suggested": [
+        "send_file",
+        "secure_transfer",
+        "file_sender",
+        "directory_path",
+        "file_handler",
+        "transfer_protocol"
+      ],
+      "expanded": 1
     },
     {
       "split": "heldout",
       "question": "Where is a JSON response created from data?",
       "keyword": 3,
-      "hybrid": 2
+      "hybrid": 2,
+      "suggested": [
+        "jsonify",
+        "json_response",
+        "create_response",
+        "serialize_data",
+        "Response",
+        "data_to_json"
+      ],
+      "expanded": 1
     },
     {
       "split": "heldout",
       "question": "Where should I look to change how error handlers are registered?",
       "keyword": 1,
-      "hybrid": 1
+      "hybrid": 1,
+      "suggested": [
+        "register_error_handler",
+        "ErrorHandler",
+        "add_error_handler",
+        "error_handlers",
+        "handle_error",
+        "set_error_handler"
+      ],
+      "expanded": 1
+    },
+    {
+      "split": "heldout",
+      "question": "Where are teardown functions called after a request finishes?",
+      "keyword": 4,
+      "hybrid": 3,
+      "suggested": [
+        "teardown_request",
+        "after_request",
+        "app.teardown_appcontext",
+        "request_finished",
+        "cleanup",
+        "close_session"
+      ],
+      "expanded": 8
+    },
+    {
+      "split": "heldout",
+      "question": "How does the test client send a request to the app?",
+      "keyword": null,
+      "hybrid": 10,
+      "suggested": [
+        "test_client",
+        "send_request",
+        "app",
+        "get",
+        "post",
+        "request"
+      ],
+      "expanded": 10
+    },
+    {
+      "split": "heldout",
+      "question": "Where does the tutorial blog delete a post?",
+      "keyword": 1,
+      "hybrid": 1,
+      "suggested": [
+        "delete_post",
+        "remove_article",
+        "blog_post_id",
+        "post_repository",
+        "delete_post_by_id",
+        "BlogPost"
+      ],
+      "expanded": 1
     }
   ],
   "negatives_top3": {
@@ -120,6 +293,30 @@
       "src/flask/helpers.py",
       "src/flask/sansio/app.py",
       "src/flask/sansio/app.py"
+    ],
+    "How does the app send email over SMTP?": [
+      "src/flask/app.py",
+      "src/flask/helpers.py",
+      "src/flask/app.py"
+    ],
+    "Where are WebSocket connections handled?": [
+      "src/flask/app.py",
+      "src/flask/sansio/app.py",
+      "src/flask/app.py"
+    ],
+    "Where are uploaded images resized into thumbnails?": [
+      "src/flask/config.py",
+      "src/flask/helpers.py"
+    ],
+    "Where is rate limiting applied to login attempts?": [
+      "src/flask/debughelpers.py",
+      "examples/tutorial/flaskr/auth.py",
+      "examples/tutorial/flaskr/auth.py"
+    ],
+    "How do users reset a forgotten password by email?": [
+      "examples/tutorial/flaskr/auth.py",
+      "src/flask/app.py",
+      "examples/tutorial/flaskr/auth.py"
     ]
   }
 }

@@ -140,6 +140,13 @@ def test_explanation_reports_insufficient_or_test_only_evidence(ai_client, fake_
     assert answer["note"] == TESTS_ONLY and not answer["sufficient"]
 
 
+def test_context_lists_question_names_no_snippet_contains():
+    row = {"path": "app.py", "symbol": "FlaskClient.open", "start_line": 1, "end_line": 2}
+    context = evidence_context("Is GraphQL in FlaskClient? Please say", [row | {"text": "x"}])
+    assert context.startswith("Question: Is GraphQL in FlaskClient? Please say\n")
+    assert "\nNot in any snippet: GraphQL, Please\n" in context
+
+
 def test_explanation_validates_requested_evidence(ai_client):
     body = evidence(ai_client)
     missing = ai_client.post("/api/explain", json=body | {"chunk_ids": [999]})
@@ -161,7 +168,7 @@ def test_general_answer_sends_only_the_question(ai_client, fake_ai):
 
 @pytest.mark.parametrize("path", ["p/" * 400, "ఆ/" * 400])
 def test_context_stays_under_20_kib_with_largest_inputs(path):
-    row = {"path": path, "start_line": 1, "end_line": 99999, "text": "é" * 9000}
+    row = {"path": path, "symbol": None, "start_line": 1, "end_line": 99999, "text": "é" * 9000}
     context = evidence_context("ఆ" * 500, [row] * 5)
     assert len(context.encode()) < 20 * 1024 and context.count("(truncated)") == 5
     assert len(evidence_context("q", [row | {"text": "x = 1"}])) < 1000  # short code is kept whole
