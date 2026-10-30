@@ -1,6 +1,7 @@
 import re
 import sqlite3
 from collections import defaultdict
+from collections.abc import Sequence
 
 from .storage import symbol_name, words
 
@@ -63,13 +64,20 @@ def _exact_symbols(db: sqlite3.Connection, query: str) -> list[int]:
     return [row[0] for row in rows]
 
 
-def search(db: sqlite3.Connection, query: str, hybrid: bool = True) -> list[dict]:
-    """Rank code regions for a question; hybrid adds symbol/path matching to keyword search."""
+def search(
+    db: sqlite3.Connection, query: str, hybrid: bool = True, extra: Sequence[str] = ()
+) -> list[dict]:
+    """Rank code regions for a question; hybrid adds symbol/path matching to keyword search.
+
+    `extra` terms (AI suggestions) add one more ranked list; the original lists are kept.
+    """
     useful = terms(query)
     lists = {"keyword match": _fts(db, useful)}
     if hybrid:
         lists["exact symbol"] = _exact_symbols(db, query)
         lists["symbol/path match"] = _fts(db, useful, "{symbol path} : ")
+    extra_terms = [t for t in terms(" ".join(extra)) if t not in useful]
+    lists["AI-suggested term"] = _fts(db, extra_terms)
 
     scores: dict[int, float] = defaultdict(float)
     reasons: dict[int, list[str]] = defaultdict(list)

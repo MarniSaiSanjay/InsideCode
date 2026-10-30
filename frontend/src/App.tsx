@@ -64,9 +64,11 @@ export default function App() {
 
   function ask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const q = String(new FormData(event.currentTarget).get('q') ?? '').trim()
+    const form = new FormData(event.currentTarget)
+    const q = String(form.get('q') ?? '').trim()
     if (!snapshot || !q) return
-    const params = new URLSearchParams({ snapshot_id: snapshot.snapshot_id, q })
+    const expand = form.get('expand') ? 'true' : 'false'
+    const params = new URLSearchParams({ snapshot_id: snapshot.snapshot_id, q, expand })
     run('search', () => api<SearchResponse>(`/search?${params}`), setSearch)
   }
 
@@ -98,7 +100,7 @@ export default function App() {
 
       <section aria-labelledby="ask-title">
         <h2 id="ask-title">2. Ask where something lives</h2>
-        <form onSubmit={ask} className="row">
+        <form id="ask" onSubmit={ask} className="row">
           <label className="visually-hidden" htmlFor="q">Question or symbol</label>
           <input
             id="q"
@@ -109,6 +111,12 @@ export default function App() {
           />
           <button disabled={!snapshot || !!busy}>{busy === 'search' ? 'Searching…' : 'Search'}</button>
         </form>
+        {health?.ai_configured && (
+          <label className="muted">
+            <input type="checkbox" name="expand" form="ask" /> Also ask AI for related search terms
+            (sends only your question to Featherless; local results are kept)
+          </label>
+        )}
       </section>
 
       <div aria-live="polite">
@@ -131,17 +139,28 @@ function SnapshotSummary({ snapshot }: { snapshot: Snapshot }) {
 }
 
 function Results({ search, onError }: { search: SearchResponse; onError: () => void }) {
+  const ai = search.ai_note ? (
+    <p className="muted">{search.ai_note}</p>
+  ) : (
+    search.suggested_terms.length > 0 && (
+      <p className="muted">AI-suggested terms also searched: {search.suggested_terms.join(', ')}</p>
+    )
+  )
   if (!search.results.length) {
     return (
-      <p>
-        No matches for “{search.query}” in our index. That does not prove it is absent from the
-        repository — try a function name or different words.
-      </p>
+      <>
+        {ai}
+        <p>
+          No matches for “{search.query}” in our index. That does not prove it is absent from the
+          repository — try a function name or different words.
+        </p>
+      </>
     )
   }
   return (
     <section aria-label="Evidence">
       <h2>Evidence for “{search.query}”</h2>
+      {ai}
       <ol className="results">
         {search.results.map((r) => (
           <EvidenceCard

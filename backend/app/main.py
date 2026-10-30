@@ -7,6 +7,7 @@ from fastapi import FastAPI, HTTPException, Query, Request, UploadFile
 from fastapi.responses import JSONResponse
 
 from .config import MIB, Settings, load_settings
+from .explain import AIUnavailable, suggest_terms
 from .indexing import ImportRejected
 from .search import MAX_QUERY_CHARS, search
 from .storage import StaleSnapshot, Store, fts5_available
@@ -67,9 +68,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return store.import_zip(name, data, settings.limits)
 
     @app.get("/api/search")
-    def find(snapshot_id: str, q: str = Query(max_length=MAX_QUERY_CHARS)):
+    def find(snapshot_id: str, q: str = Query(max_length=MAX_QUERY_CHARS), expand: bool = False):
+        suggested, ai_note = [], None
+        if expand:
+            try:
+                suggested = suggest_terms(settings, q)
+            except AIUnavailable as exc:
+                ai_note = f"{exc}. Showing local search results only."
         with closing(store.connect(snapshot_id)) as db:
-            return {"snapshot_id": snapshot_id, "query": q, "results": search(db, q)}
+            results = search(db, q, extra=suggested)
+        return {
+            "snapshot_id": snapshot_id,
+            "query": q,
+            "suggested_terms": suggested,
+            "ai_note": ai_note,
+            "results": results,
+        }
 
     @app.get("/api/snapshots/{snapshot_id}/files/{file_id}")
     def source(snapshot_id: str, file_id: int):

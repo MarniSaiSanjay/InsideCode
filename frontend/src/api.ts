@@ -28,7 +28,13 @@ export type Result = {
   reasons: string[]
 }
 
-export type SearchResponse = { snapshot_id: string; query: string; results: Result[] }
+export type SearchResponse = {
+  snapshot_id: string
+  query: string
+  suggested_terms: string[]
+  ai_note: string | null
+  results: Result[]
+}
 
 export type Source = { id: number; path: string; text: string; is_test: boolean }
 
