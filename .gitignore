@@ -1,0 +1,10 @@
+.brahmaniss/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.env
+node_modules/
+dist/
+.DS_Store

@@ -1,0 +1,156 @@
+{
+  "repository": {
+    "name": "flask",
+    "url": "https://github.com/pallets/flask",
+    "commit": "49943b5a94413a530761350f04e896f76e8d620e",
+    "license": "BSD-3-Clause",
+    "zip_url": "https://codeload.github.com/pallets/flask/zip/49943b5a94413a530761350f04e896f76e8d620e",
+    "sha256": "fb24b05235402f708ab3f8cd8cf6b1ea633bfa65c45c34f6295f7876b1d6a679"
+  },
+  "note": "Expected locations were checked by reading the pinned source. A result is a hit when its path and symbol match one expected location. Held-out cases are not used for tuning.",
+  "cases": [
+    {
+      "id": "session-cookie",
+      "split": "dev",
+      "kind": "feature",
+      "question": "Where is the session cookie signed and loaded?",
+      "expected": [
+        {"path": "src/flask/sessions.py", "symbol": "SecureCookieSessionInterface.open_session"},
+        {"path": "src/flask/sessions.py", "symbol": "SecureCookieSessionInterface.get_signing_serializer"},
+        {"path": "src/flask/sessions.py", "symbol": "SecureCookieSessionInterface.save_session"}
+      ]
+    },
+    {
+      "id": "url-for",
+      "split": "dev",
+      "kind": "exact-symbol",
+      "question": "Where is url_for defined?",
+      "expected": [
+        {"path": "src/flask/helpers.py", "symbol": "url_for"},
+        {"path": "src/flask/app.py", "symbol": "Flask.url_for"}
+      ]
+    },
+    {
+      "id": "flash-messages",
+      "split": "dev",
+      "kind": "feature",
+      "question": "How are flashed messages stored and retrieved?",
+      "expected": [
+        {"path": "src/flask/helpers.py", "symbol": "flash"},
+        {"path": "src/flask/helpers.py", "symbol": "get_flashed_messages"}
+      ]
+    },
+    {
+      "id": "prefixed-env-config",
+      "split": "dev",
+      "kind": "feature",
+      "question": "Where is configuration loaded from environment variables with a prefix?",
+      "expected": [
+        {"path": "src/flask/config.py", "symbol": "Config.from_prefixed_env"}
+      ]
+    },
+    {
+      "id": "blueprint-registration",
+      "split": "dev",
+      "kind": "relationship",
+      "question": "How does a blueprint get registered on the application?",
+      "expected": [
+        {"path": "src/flask/sansio/app.py", "symbol": "App.register_blueprint"},
+        {"path": "src/flask/sansio/blueprints.py", "symbol": "Blueprint.register"}
+      ]
+    },
+    {
+      "id": "unhandled-exception",
+      "split": "dev",
+      "kind": "feature",
+      "question": "Where are unhandled exceptions turned into a 500 internal server error?",
+      "expected": [
+        {"path": "src/flask/app.py", "symbol": "Flask.handle_exception"}
+      ]
+    },
+    {
+      "id": "login-password-check",
+      "split": "dev",
+      "kind": "small-change",
+      "question": "Where should I start reading to change how the login form checks the password?",
+      "expected": [
+        {"path": "examples/tutorial/flaskr/auth.py", "symbol": "login"}
+      ]
+    },
+    {
+      "id": "cli-find-app",
+      "split": "dev",
+      "kind": "feature",
+      "question": "How does the command line find the application in a module?",
+      "expected": [
+        {"path": "src/flask/cli.py", "symbol": "find_best_app"},
+        {"path": "src/flask/cli.py", "symbol": "locate_app"},
+        {"path": "src/flask/cli.py", "symbol": "find_app_by_string"}
+      ]
+    },
+    {
+      "id": "dispatch-request",
+      "split": "dev",
+      "kind": "relationship",
+      "question": "Where is the request dispatched to the view function?",
+      "expected": [
+        {"path": "src/flask/app.py", "symbol": "Flask.dispatch_request"},
+        {"path": "src/flask/app.py", "symbol": "Flask.full_dispatch_request"}
+      ]
+    },
+    {
+      "id": "init-db",
+      "split": "dev",
+      "kind": "feature",
+      "question": "How does the tutorial app initialize the database?",
+      "expected": [
+        {"path": "examples/tutorial/flaskr/db.py", "symbol": "init_db"},
+        {"path": "examples/tutorial/flaskr/db.py", "symbol": "init_db_command"}
+      ]
+    },
+    {
+      "id": "logged-in-user",
+      "split": "heldout",
+      "kind": "feature",
+      "question": "Where is the logged in user loaded before each request?",
+      "expected": [
+        {"path": "examples/tutorial/flaskr/auth.py", "symbol": "load_logged_in_user"}
+      ]
+    },
+    {
+      "id": "send-from-directory",
+      "split": "heldout",
+      "kind": "feature",
+      "question": "How are files safely sent from a directory?",
+      "expected": [
+        {"path": "src/flask/helpers.py", "symbol": "send_from_directory"}
+      ]
+    },
+    {
+      "id": "json-response",
+      "split": "heldout",
+      "kind": "relationship",
+      "question": "Where is a JSON response created from data?",
+      "expected": [
+        {"path": "src/flask/json/__init__.py", "symbol": "jsonify"},
+        {"path": "src/flask/json/provider.py", "symbol": "DefaultJSONProvider.response"},
+        {"path": "src/flask/json/provider.py", "symbol": "JSONProvider.response"}
+      ]
+    },
+    {
+      "id": "register-error-handler",
+      "split": "heldout",
+      "kind": "small-change",
+      "question": "Where should I look to change how error handlers are registered?",
+      "expected": [
+        {"path": "src/flask/sansio/scaffold.py", "symbol": "Scaffold.errorhandler"},
+        {"path": "src/flask/sansio/scaffold.py", "symbol": "Scaffold.register_error_handler"}
+      ]
+    }
+  ],
+  "negatives": [
+    "Where is the GraphQL schema defined?",
+    "How are payments processed with Stripe?",
+    "Where does the app publish messages to Kafka?"
+  ]
+}
