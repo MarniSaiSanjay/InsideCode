@@ -1,6 +1,6 @@
 # Brahmaniss - Simple Implementation Plan
 
-**Status:** In progress — tasks 1-8 done. See `spec.md` for requirements and checks.
+**Status:** Tasks 1-9 done; the real Featherless call still needs verification with a key. See `spec.md` for requirements and checks.
 
 ## 1. Architecture
 

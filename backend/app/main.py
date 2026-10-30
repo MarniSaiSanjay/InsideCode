@@ -5,6 +5,7 @@ from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException, Query, Request, UploadFile
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from .config import MIB, Settings, load_settings
@@ -133,4 +134,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def general(body: Question):
         return {"answer": general_answer(settings, body.question)}
 
+    if settings.ui_dir.is_dir():
+        app.mount("/", StaticFiles(directory=settings.ui_dir, html=True), name="ui")
     return app

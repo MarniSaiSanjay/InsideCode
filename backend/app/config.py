@@ -22,6 +22,7 @@ class Settings:
     ai_key: str = ""
     ai_model: str = ""
     ai_base_url: str = "https://api.featherless.ai/v1"
+    ui_dir: Path = ROOT / "frontend" / "dist"  # built UI, served when present
     limits: Limits = field(default_factory=Limits)
 
     @property

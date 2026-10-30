@@ -1,7 +1,6 @@
 # One Complete Example: Finding the Logout Code
 
-This uses real Flask tutorial source. The indexing example is verified separately;
-our application is not built yet. IDs below are illustrative.
+This uses real Flask tutorial source. IDs below are illustrative.
 
 ## 1. What is inside the uploaded ZIP?
 
