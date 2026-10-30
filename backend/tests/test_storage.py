@@ -9,7 +9,7 @@ from app.config import Limits, Settings
 from app.indexing import ImportRejected
 from app.main import create_app
 from app.storage import Store, words
-from tests.helpers import make_zip
+from tests.helpers import make_zip, upload
 
 AUTH = '''from flask import session
 
@@ -19,10 +19,6 @@ def logout():
     """Clear the current session."""
     session.clear()
 '''
-
-
-def upload(client, files: dict[str, str], name: str = "repo.zip"):
-    return client.post("/api/snapshots", files={"file": (name, make_zip(files))})
 
 
 def test_words_split_identifiers():
@@ -114,3 +110,12 @@ def test_failed_publish_leaves_no_partial_state(settings, monkeypatch):
         store.import_zip("b.zip", make_zip({"b.py": "y = 2\n"}), settings.limits)
     assert store.current == first
     assert [p.name for p in store.dir.iterdir()] == [f"{first['snapshot_id']}.sqlite"]
+
+
+def test_snapshot_from_older_schema_is_discarded(settings, client):
+    upload(client, {"a.py": "x = 1\n"})
+    pointer = settings.state_dir / "current.json"
+    pointer.write_text(pointer.read_text().replace('"schema": 2', '"schema": 1'))
+    store = Store(settings.state_dir)
+    assert store.current is None
+    assert list(store.dir.iterdir()) == []

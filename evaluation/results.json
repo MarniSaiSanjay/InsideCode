@@ -1,0 +1,125 @@
+{
+  "repository": {
+    "name": "flask",
+    "commit": "49943b5a94413a530761350f04e896f76e8d620e"
+  },
+  "machine": "Darwin arm64, Python 3.12.16",
+  "index": {
+    "files": 83,
+    "chunks": 1035,
+    "seconds": 0.08
+  },
+  "max_search_ms": 0.8,
+  "hit_at_5": {
+    "dev": {
+      "keyword": "9/10",
+      "hybrid": "10/10"
+    },
+    "heldout": {
+      "keyword": "4/4",
+      "hybrid": "4/4"
+    }
+  },
+  "cases": [
+    {
+      "split": "dev",
+      "question": "Where is the session cookie signed and loaded?",
+      "keyword": 1,
+      "hybrid": 1
+    },
+    {
+      "split": "dev",
+      "question": "Where is url_for defined?",
+      "keyword": 8,
+      "hybrid": 1
+    },
+    {
+      "split": "dev",
+      "question": "How are flashed messages stored and retrieved?",
+      "keyword": 1,
+      "hybrid": 1
+    },
+    {
+      "split": "dev",
+      "question": "Where is configuration loaded from environment variables with a prefix?",
+      "keyword": 2,
+      "hybrid": 2
+    },
+    {
+      "split": "dev",
+      "question": "How does a blueprint get registered on the application?",
+      "keyword": 1,
+      "hybrid": 1
+    },
+    {
+      "split": "dev",
+      "question": "Where are unhandled exceptions turned into a 500 internal server error?",
+      "keyword": 1,
+      "hybrid": 1
+    },
+    {
+      "split": "dev",
+      "question": "Where should I start reading to change how the login form checks the password?",
+      "keyword": 1,
+      "hybrid": 1
+    },
+    {
+      "split": "dev",
+      "question": "How does the command line find the application in a module?",
+      "keyword": 1,
+      "hybrid": 2
+    },
+    {
+      "split": "dev",
+      "question": "Where is the request dispatched to the view function?",
+      "keyword": 3,
+      "hybrid": 3
+    },
+    {
+      "split": "dev",
+      "question": "How does the tutorial app initialize the database?",
+      "keyword": 1,
+      "hybrid": 4
+    },
+    {
+      "split": "heldout",
+      "question": "Where is the logged in user loaded before each request?",
+      "keyword": 1,
+      "hybrid": 1
+    },
+    {
+      "split": "heldout",
+      "question": "How are files safely sent from a directory?",
+      "keyword": 1,
+      "hybrid": 1
+    },
+    {
+      "split": "heldout",
+      "question": "Where is a JSON response created from data?",
+      "keyword": 3,
+      "hybrid": 2
+    },
+    {
+      "split": "heldout",
+      "question": "Where should I look to change how error handlers are registered?",
+      "keyword": 1,
+      "hybrid": 1
+    }
+  ],
+  "negatives_top3": {
+    "Where is the GraphQL schema defined?": [
+      "examples/tutorial/flaskr/db.py",
+      "src/flask/app.py"
+    ],
+    "How are payments processed with Stripe?": [
+      "examples/celery/src/task_app/views.py",
+      "examples/celery/src/task_app/tasks.py",
+      "src/flask/app.py"
+    ],
+    "Where does the app publish messages to Kafka?": [
+      "src/flask/helpers.py",
+      "src/flask/sansio/app.py",
+      "src/flask/sansio/app.py"
+    ]
+  }
+}

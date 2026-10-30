@@ -1,12 +1,14 @@
+from contextlib import closing
 from dataclasses import asdict
 from pathlib import PurePosixPath
 from urllib.parse import urlsplit
 
-from fastapi import FastAPI, HTTPException, Request, UploadFile
+from fastapi import FastAPI, HTTPException, Query, Request, UploadFile
 from fastapi.responses import JSONResponse
 
 from .config import MIB, Settings, load_settings
 from .indexing import ImportRejected
+from .search import MAX_QUERY_CHARS, search
 from .storage import StaleSnapshot, Store, fts5_available
 
 LOCAL_HOSTS = {"localhost", "127.0.0.1", "[::1]", "::1"}
@@ -63,6 +65,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         data = file.file.read(limit + 1)
         name = PurePosixPath((file.filename or "upload.zip").replace("\\", "/")).name[:100]
         return store.import_zip(name, data, settings.limits)
+
+    @app.get("/api/search")
+    def find(snapshot_id: str, q: str = Query(max_length=MAX_QUERY_CHARS)):
+        with closing(store.connect(snapshot_id)) as db:
+            return {"snapshot_id": snapshot_id, "query": q, "results": search(db, q)}
 
     @app.get("/api/snapshots/{snapshot_id}/files/{file_id}")
     def source(snapshot_id: str, file_id: int):

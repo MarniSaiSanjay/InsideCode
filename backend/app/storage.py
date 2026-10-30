@@ -11,6 +11,7 @@ from pathlib import Path, PurePosixPath
 from .config import Limits
 from .indexing import Deadline, ImportRejected, SourceFile, chunk_file, read_zip
 
+SCHEMA_VERSION = 2  # bump when SCHEMA changes; older snapshots are then discarded
 SCHEMA = """
 CREATE TABLE files (
     id INTEGER PRIMARY KEY, path TEXT NOT NULL UNIQUE, text TEXT NOT NULL,
@@ -18,8 +19,10 @@ CREATE TABLE files (
 );
 CREATE TABLE chunks (
     id INTEGER PRIMARY KEY, file_id INTEGER NOT NULL REFERENCES files(id), kind TEXT NOT NULL,
-    symbol TEXT, start_line INTEGER NOT NULL, end_line INTEGER NOT NULL, text TEXT NOT NULL
+    symbol TEXT, name TEXT, start_line INTEGER NOT NULL, end_line INTEGER NOT NULL,
+    text TEXT NOT NULL
 );
+CREATE INDEX chunks_name ON chunks(name);
 CREATE VIRTUAL TABLE chunks_fts USING fts5(
     symbol, path, code, content='', tokenize='porter unicode61'
 );
@@ -48,6 +51,11 @@ def words(text: str) -> list[str]:
     return [w.lower() for w in WORD.findall(text)]
 
 
+def symbol_name(symbol: str | None) -> str | None:
+    """Lowercase final part of a dotted symbol, used for exact-name lookups."""
+    return symbol.rsplit(".", 1)[-1].lower() if symbol else None
+
+
 def is_test_path(path: str) -> bool:
     *dirs, name = PurePosixPath(path).parts
     return (
@@ -72,9 +80,17 @@ def _build(path: Path, files: list[SourceFile], deadline: Deadline) -> int:
             path_words = " ".join(words(file.path))
             for chunk in chunk_file(file):
                 chunk_id = db.execute(
-                    "INSERT INTO chunks (file_id, kind, symbol, start_line, end_line, text)"
-                    " VALUES (?, ?, ?, ?, ?, ?)",
-                    (file_id, chunk.kind, chunk.symbol, chunk.start, chunk.end, chunk.text),
+                    "INSERT INTO chunks (file_id, kind, symbol, name, start_line, end_line, text)"
+                    " VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        file_id,
+                        chunk.kind,
+                        chunk.symbol,
+                        symbol_name(chunk.symbol),
+                        chunk.start,
+                        chunk.end,
+                        chunk.text,
+                    ),
                 ).lastrowid
                 db.execute(
                     "INSERT INTO chunks_fts (rowid, symbol, path, code) VALUES (?, ?, ?, ?)",
@@ -108,7 +124,8 @@ class Store:
     def _load_current(self) -> dict | None:
         try:
             current = json.loads(self.pointer.read_text())
-            return current if self._db_path(current["snapshot_id"]).is_file() else None
+            usable = current["schema"] == SCHEMA_VERSION
+            return current if usable and self._db_path(current["snapshot_id"]).is_file() else None
         except (OSError, ValueError, KeyError, TypeError):
             return None
 
@@ -132,6 +149,7 @@ class Store:
             os.replace(temp, final)
             summary = {
                 "snapshot_id": snapshot_id,
+                "schema": SCHEMA_VERSION,
                 "name": name,
                 "files": len(contents.files),
                 "chunks": chunk_count,
