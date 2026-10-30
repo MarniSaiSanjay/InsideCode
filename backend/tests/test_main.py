@@ -10,6 +10,7 @@ def test_health_reports_fts5_and_ai_state(client):
     assert body["fts5"] is True
     assert body["ai_configured"] is False
     assert body["limits"]["max_zip_bytes"] == 20 * 1024 * 1024
+    assert {"Python", "Go"} <= set(body["languages"])
 
 
 def test_rejects_foreign_origin(client):

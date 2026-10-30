@@ -12,8 +12,9 @@ AI explanation backed by that code.
 
 **One dashboard. One backend. One database. One uploaded repository at a time.**
 
-Start with Python repositories. Support other languages only after this workflow
-works reliably. A limited language set is allowed by the problem statement.
+Started with Python repositories; common languages (JavaScript/TypeScript, Java,
+Kotlin, Go, C#, C/C++, Rust, PHP, Swift, Ruby) are now indexed with a lightweight
+regex-based chunker. A limited language set is allowed by the problem statement.
 
 ## 2. Required workflow
 
@@ -41,7 +42,7 @@ the statement. No full call graph or impact analysis is promised.
 |---|---|
 | 1. Local repository or source archive | ZIP upload; local-folder import is unnecessary for the first version |
 | 2. Exclude generated/build/dependency files and enforce configurable file size | Filtering and explicit limits with skipped-file counts |
-| 3. Index paths, functions/classes, and snippets | Python syntax parsing plus stored source ranges |
+| 3. Index paths, functions/classes, and snippets | Python `ast` (regex definitions for other languages) plus stored source ranges |
 | 4. Natural-language and keyword queries | One search box supporting both |
 | 5. Rank files and code regions | Keyword search combined with symbol matching |
 | 6. Show code, path, and line range | Evidence cards and an expandable source view |
@@ -59,7 +60,7 @@ explanation provider; an accessible model must be checked before integration.
 |---|---|
 | Frontend | React + TypeScript + Vite |
 | Backend | Python + FastAPI |
-| Python source parsing | Python standard-library `ast` |
+| Source parsing | Python standard-library `ast`; stdlib regexes for other languages |
 | Storage and keyword search | SQLite + FTS5 |
 | AI explanation | Featherless through an OpenAI-compatible client |
 | Checks | pytest, frontend typecheck/lint/build, focused browser tests |
@@ -74,7 +75,7 @@ worker service.
 
 ## 5. Index once, search many times
 
-- Accept UTF-8 `.py` files, including tests; label tests separately.
+- Accept UTF-8 source files of supported languages, including tests; label tests separately.
 - Exclude `.git`, dependency environments, caches, build outputs, generated files,
   binary files, archives, and known secret-oriented filenames.
 - Keep a private copy of admitted source, repository-relative paths, and content

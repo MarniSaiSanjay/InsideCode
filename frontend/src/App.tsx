@@ -126,7 +126,7 @@ export default function App() {
 
       <main>
         <div className="hero">
-          <h1>Find where things live in an unfamiliar Python repo.</h1>
+          <h1>Find where things live in an unfamiliar codebase.</h1>
           <p>
             Ask a question and get ranked code snippets with exact paths and line numbers. Evidence
             first. AI explanations only when you ask.
@@ -183,7 +183,8 @@ export default function App() {
               </button>
             </form>
             <p className="muted hint">
-              Python files only. Code is indexed locally and never executed.
+              {health ? `${health.languages.join(', ')}. ` : ''}
+              Code is indexed locally and never executed.
               {limitMb ? ` Max ${limitMb} MB ZIP.` : ''}
             </p>
             {snapshot ? (
@@ -276,7 +277,7 @@ function SnapshotSummary({ snapshot }: { snapshot: Snapshot }) {
       </p>
       <ul className="stats">
         <li className="stat repo" title={snapshot.name}>{snapshot.name}</li>
-        <li className="stat"><strong>{snapshot.files}</strong> Python files</li>
+        <li className="stat"><strong>{snapshot.files}</strong> source files</li>
         <li className="stat"><strong>{snapshot.chunks}</strong> code regions</li>
         {skipped.map(([why, n]) => (
           <li key={why} className="stat skipped"><strong>{n}</strong> skipped: {why}</li>

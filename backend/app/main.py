@@ -18,6 +18,7 @@ from .explain import (
     suggest_terms,
 )
 from .indexing import ImportRejected
+from .languages import LANGUAGES
 from .search import MAX_QUERY_CHARS, RESULT_SQL, search
 from .storage import StaleSnapshot, Store, fts5_available
 
@@ -77,6 +78,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "fts5": fts5_available(),
             "ai_configured": settings.ai_configured,
             "limits": asdict(settings.limits),
+            "languages": [language.name for language in LANGUAGES],
         }
 
     @app.get("/api/status")

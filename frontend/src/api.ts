@@ -3,6 +3,7 @@ export type Health = {
   fts5: boolean
   ai_configured: boolean
   limits: Record<string, number>
+  languages: string[]
 }
 
 export type Snapshot = {

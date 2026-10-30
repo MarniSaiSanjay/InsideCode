@@ -6,10 +6,11 @@ import secrets
 import sqlite3
 import threading
 from contextlib import closing
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 
 from .config import Limits
 from .indexing import Deadline, ImportRejected, SourceFile, chunk_file, read_zip
+from .languages import is_test_path
 
 SCHEMA_VERSION = 2  # bump when SCHEMA changes; older snapshots are then discarded
 SCHEMA = """
@@ -29,7 +30,6 @@ CREATE VIRTUAL TABLE chunks_fts USING fts5(
 """
 # CamelCase parts, lowercase runs, digits, and non-ASCII words (kept with their combining marks).
 WORD = re.compile(r"[A-Z]+(?=[A-Z][a-z])|[A-Z]?[a-z]+|[A-Z]+|\d+|[^\W\d_A-Za-z][^\x00-\x7f\s]*")
-TEST_DIRS = {"test", "tests"}
 
 
 class StaleSnapshot(Exception):
@@ -54,16 +54,6 @@ def words(text: str) -> list[str]:
 def symbol_name(symbol: str | None) -> str | None:
     """Lowercase final part of a dotted symbol, used for exact-name lookups."""
     return symbol.rsplit(".", 1)[-1].lower() if symbol else None
-
-
-def is_test_path(path: str) -> bool:
-    *dirs, name = PurePosixPath(path).parts
-    return (
-        bool(TEST_DIRS & set(dirs))
-        or name.startswith("test_")
-        or name.endswith("_test.py")
-        or name == "conftest.py"
-    )
 
 
 def _build(path: Path, files: list[SourceFile], deadline: Deadline) -> int:

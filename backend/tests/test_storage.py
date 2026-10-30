@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from app.config import Limits, Settings
 from app.indexing import ImportRejected
 from app.main import create_app
-from app.storage import Store, words
+from app.storage import Store, is_test_path, words
 from tests.helpers import make_zip, upload
 
 AUTH = '''from flask import session
@@ -26,6 +26,26 @@ def test_words_split_identifiers():
         "secure", "cookie", "session", "interface", "open", "session",
         "http", "error", "v", "2", "నమస్తే",
     ]  # fmt: skip
+
+
+@pytest.mark.parametrize(
+    ("path", "expected"),
+    [
+        ("tests/test_auth.py", True),
+        ("src/conftest.py", True),
+        ("web/api.test.ts", True),
+        ("web/__tests__/api.js", True),
+        ("server/handler_test.go", True),
+        ("src/UserServiceTest.java", True),
+        ("App.Tests/OrderServiceTests.cs", True),
+        ("spec/models/user_spec.rb", True),
+        ("src/latest.ts", False),
+        ("src/Contest.java", False),
+        ("server/handler.go", False),
+    ],
+)
+def test_detects_test_paths_across_languages(path, expected):
+    assert is_test_path(path) is expected
 
 
 def test_upload_publishes_searchable_snapshot_with_exact_source(settings, client):

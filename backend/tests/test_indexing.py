@@ -16,10 +16,21 @@ def read(data: bytes, limits: Limits = LIMITS):
     return read_zip(data, limits, Deadline(60))
 
 
-def test_admits_python_and_strips_common_root():
-    result = read(make_zip({"repo/pkg/a.py": "x = 1\n", "repo/README.md": "hi"}))
-    assert [f.path for f in result.files] == ["pkg/a.py"]
-    assert result.skipped == {"not a Python file": 1}
+def test_admits_supported_languages_and_strips_common_root():
+    files = {
+        "repo/pkg/a.py": "x = 1\n",
+        "repo/web/app.ts": "let x = 1\n",
+        "repo/README.md": "hi",
+        "repo/web/app.min.js": "x",
+        "repo/vendor/lib.go": "package lib",
+    }
+    result = read(make_zip(files))
+    assert [f.path for f in result.files] == ["pkg/a.py", "web/app.ts"]
+    assert result.skipped == {
+        "unsupported file type": 1,
+        "generated file": 1,
+        "excluded directory": 1,
+    }
 
 
 def test_skips_excluded_generated_secret_and_binary_files():
@@ -167,9 +178,9 @@ class Service:
 """
 
 
-def spans(text: str, **kwargs):
+def spans(text: str, path: str = "m.py", **kwargs):
     return [
-        (c.kind, c.symbol, c.start, c.end) for c in chunk_file(SourceFile("m.py", text), **kwargs)
+        (c.kind, c.symbol, c.start, c.end) for c in chunk_file(SourceFile(path, text), **kwargs)
     ]
 
 
@@ -227,3 +238,84 @@ def test_crlf_cr_and_unicode_keep_line_numbers():
         (None, 1, 2, "# నమస్తే\nx = 1"),
         ("f", 4, 5, "def f():\n    return '✓'"),
     ]
+
+
+GENERIC = {
+    "svc.ts": (
+        "import { Repo } from './repo';\n\n@Injectable()\nexport class UserService {\n"
+        "  async save(user: User): Promise<void> {\n    if (user) { log('}'); }\n  }\n}\n\n"
+        "export const handler = async (req) => {\n  return 1;\n};\n",
+        [
+            ("module", None, 1, 1),
+            ("class", "UserService", 3, 4),
+            ("function", "UserService.save", 5, 7),
+            ("function", "handler", 10, 12),
+        ],
+    ),
+    "app.js": (
+        "var app = {};\napp.handle = function handle(req) {\n  return req;\n};\n",
+        [("module", None, 1, 1), ("function", "app.handle", 2, 4)],
+    ),
+    "main.go": (
+        "package main\n\ntype Server struct {\n\tname string\n}\n\n"
+        "// Handle serves one request.\nfunc (s *Server) Handle(r *Request) error {\n"
+        "\treturn nil\n}\n",
+        [
+            ("module", None, 1, 1),
+            ("class", "Server", 3, 5),
+            ("function", "Server.Handle", 7, 10),
+        ],
+    ),
+    "UserService.java": (
+        "public class UserService {\n    @Override\n    public void save(User u)\n    {\n"
+        "        repo.put(u);\n    }\n\n    abstract int count();\n}\n",
+        [
+            ("class", "UserService", 1, 1),
+            ("function", "UserService.save", 2, 6),
+            ("class", "UserService", 8, 9),
+        ],
+    ),
+    "lib.rs": (
+        "impl<'a> fmt::Display for Wrapper<'a> {\n    fn fmt(&self) -> Result {\n"
+        "        Ok(())\n    }\n}\n",
+        [("class", "Wrapper", 1, 1), ("function", "Wrapper.fmt", 2, 4)],
+    ),
+    "Orders.cs": (
+        "namespace App\n{\n    public class OrderService\n    {\n"
+        "        public async Task<Dictionary<string, int>> GetAsync(int id)\n        {\n"
+        "            return null;\n        }\n    }\n}\n",
+        [
+            ("module", None, 1, 2),
+            ("class", "OrderService", 3, 4),
+            ("function", "OrderService.GetAsync", 5, 8),
+        ],
+    ),
+    "invoice.rb": (
+        "class Invoice\n  def total\n    items.sum\n  end\nend\n",
+        [("class", "Invoice", 1, 1), ("function", "Invoice.total", 2, 4)],
+    ),
+}
+
+
+@pytest.mark.parametrize("name", GENERIC)
+def test_chunks_other_languages_with_regex_definitions(name):
+    text, expected = GENERIC[name]
+    assert spans(text, path=name) == expected
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "function a() {\n  if (x) {\n    return 1;\n}\n",  # unbalanced braces
+        "}}{{ ) garbage ( {\n" * 3,
+        "let x = 1;\nconsole.log(x);\n",  # no definitions
+    ],
+)
+def test_unparseable_or_definition_free_code_falls_back_to_lines(text):
+    assert {kind for kind, *_ in spans(text, path="a.ts")} == {"lines"}
+
+
+def test_long_python_function_keeps_closing_line():
+    text = "def f():\n" + "    x = 1\n" * 85 + "    return (\n        1,\n    )\n"
+    chunks = chunk_file(SourceFile("a.py", text))
+    assert {line for c in chunks for line in range(c.start, c.end + 1)} == set(range(1, 90))

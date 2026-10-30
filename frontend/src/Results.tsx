@@ -309,9 +309,9 @@ function EvidenceCard({ result, rank, label, snapshotId, onError }: CardProps) {
         ))}
       </div>
       {open && source ? (
-        <CodeLines text={source.text} first={1} highlight={lines} scroll />
+        <CodeLines text={source.text} path={result.path} first={1} highlight={lines} scroll />
       ) : (
-        <CodeLines text={result.text} first={result.start_line} />
+        <CodeLines text={result.text} path={result.path} first={result.start_line} />
       )}
       <div className="ev-foot">
         <button className="ev-btn" aria-expanded={open} onClick={toggle}>
@@ -329,18 +329,28 @@ function EvidenceCard({ result, rank, label, snapshotId, onError }: CardProps) {
   )
 }
 
-// Tiny Python highlighter: tokens are rendered as React text, so code is never parsed as HTML.
+// Tiny highlighter shared by all languages: tokens are rendered as React text, never as HTML.
 const KEYWORDS =
-  'False|None|True|and|as|assert|async|await|break|class|continue|def|del|elif|else|except|finally|for|from|global|if|import|in|is|lambda|nonlocal|not|or|pass|raise|return|try|while|with|yield|self|cls'
-const PY = new RegExp(
-  String.raw`(#.*)|([rRbBuUfF]{0,2}(?:"""[\s\S]*?(?:"""|$)|'''[\s\S]*?(?:'''|$)|"(?:\\.|[^"\\\n])*"?|'(?:\\.|[^'\\\n])*'?))` +
-    String.raw`|(@[\w.]+)|\b(\d[\w.]*)|\b(${KEYWORDS})\b`,
-  'g',
-)
+  'False|None|True|and|as|assert|async|await|break|case|catch|class|const|continue|def|defer|del|elif|else|end|enum|except|export|extends|false|final|finally|fn|for|from|func|function|go|if|impl|implements|import|in|interface|is|lambda|let|match|module|mut|new|nil|not|null|or|package|pass|private|protected|pub|public|raise|return|self|static|struct|switch|this|throw|trait|true|try|type|use|var|void|while|with|yield'
+const pattern = (comment: string, single: string) =>
+  new RegExp(
+    String.raw`(${comment})|([rRbBuUfF]{0,2}(?:"""[\s\S]*?(?:"""|$)|'''[\s\S]*?(?:'''|$)|"(?:\\.|[^"\\\n])*"?|${single}|\x60[^\x60]*\x60?))` +
+      String.raw`|(@[\w.]+)|\b(\d[\w.]*)|\b(${KEYWORDS})\b`,
+    'g',
+  )
+// An unclosed string ends at the line end, so every match attempt succeeds and scanning stays linear.
+const QUOTED = String.raw`'(?:\\.|[^'\\\n])*'?`
+const RUST_CHAR = String.raw`'(?:\\.|[^'\\\n])'` // `'a` alone is a Rust lifetime, not a string
+const SLASH = String.raw`//.*|/\*[\s\S]*?(?:\*/|$)`
+const HASH_COMMENTS = pattern('#.*', QUOTED)
+const SLASH_COMMENTS = pattern(SLASH, QUOTED)
+const RUST = pattern(SLASH, RUST_CHAR)
+const DEFINES = new Set(['def', 'class', 'function', 'func', 'fn', 'struct', 'interface', 'enum', 'trait', 'module'])
 const TOKEN_CLASSES = ['com', 'str', 'dec', 'num', 'kw']
 type Token = [kind: string, text: string]
 
-function tokenize(text: string): Token[][] {
+function tokenize(text: string, path: string): Token[][] {
+  const regex = /\.(py|rb)$/i.test(path) ? HASH_COMMENTS : /\.rs$/i.test(path) ? RUST : SLASH_COMMENTS
   const lines: Token[][] = [[]]
   const push = (part: string, kind = '') =>
     part.split('\n').forEach((piece, i) => {
@@ -357,26 +367,27 @@ function tokenize(text: string): Token[][] {
     push(gap.slice(def[0].length))
   }
   let last = 0
-  for (const m of text.matchAll(PY)) {
+  for (const m of text.matchAll(regex)) {
     plain(text.slice(last, m.index))
     const kind = TOKEN_CLASSES[m.slice(1).findIndex(Boolean)]
     push(m[0], kind)
-    named = kind === 'kw' && (m[0] === 'def' || m[0] === 'class')
+    named = kind === 'kw' && DEFINES.has(m[0])
     last = m.index + m[0].length
   }
   plain(text.slice(last))
   return lines
 }
 
-function CodeLines(props: { text: string; first: number; highlight?: [number, number]; scroll?: boolean }) {
-  const { text, first, highlight, scroll } = props
+type CodeProps = { text: string; path: string; first: number; highlight?: [number, number]; scroll?: boolean }
+
+function CodeLines({ text, path, first, highlight, scroll }: CodeProps) {
   const box = useRef<HTMLPreElement>(null)
   useEffect(() => {
     const pre = box.current
     const hit = pre?.querySelector<HTMLElement>('.ev-hl')
     if (scroll && pre && hit) pre.scrollTop = hit.offsetTop - pre.clientHeight / 3
   }, [scroll])
-  const lines = useMemo(() => tokenize(text.replace(/\n$/, '')), [text])
+  const lines = useMemo(() => tokenize(text.replace(/\n$/, ''), path), [text, path])
   return (
     <pre ref={box} className={scroll ? 'ev-code full' : 'ev-code'} tabIndex={0}>
       <code className="ev-code-inner">

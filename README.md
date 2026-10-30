@@ -3,7 +3,7 @@
 **Ask about unfamiliar code, find the right place, and verify the evidence.**
 
 New contributors lose hours finding where a feature lives in an unfamiliar repository.
-Brahmaniss indexes a Python repository locally and answers questions such as
+Brahmaniss indexes a code repository locally and answers questions such as
 *"Where is the session cookie loaded?"* with ranked, exact source regions (path and
 line range) that you can open in the full file. AI is optional: with consent, it can
 suggest search terms or explain the top snippets, citing only the evidence it was shown.
@@ -13,7 +13,7 @@ Built by Team NextGen for CBIT Hacktoberfest Hackathon '26.
 ## How it works
 
 ```text
-ZIP upload ──> safe extraction ──> Python ast chunks ──> SQLite + FTS5 snapshot
+ZIP upload ──> safe extraction ──> symbol chunks ─────> SQLite + FTS5 snapshot
                                                               │
 question ──> keyword + exact-symbol + symbol/path search (RRF) ┘──> evidence cards
                                                               │
@@ -21,7 +21,10 @@ question ──> keyword + exact-symbol + symbol/path search (RRF) ┘──> ev
 ```
 
 - **Import** (`backend/app/indexing.py`): rejects unsafe paths, symlinks, duplicates,
-  encrypted or oversized archives; keeps `.py` files only; never runs uploaded code.
+  encrypted or oversized archives; keeps source files of supported languages, skips
+  dependency/build folders and generated files; never runs uploaded code. Python is
+  chunked with `ast`; other languages with per-language definition regexes and brace
+  (or Ruby `end`) matching, falling back to line windows (`backend/app/languages.py`).
 - **Index** (`backend/app/storage.py`): one SQLite database per snapshot, published
   atomically; a failed upload keeps the previous index; it survives restarts.
 - **Search** (`backend/app/search.py`): BM25 keyword search, exact-symbol lookup and
@@ -73,7 +76,9 @@ For frontend development, run `npx vite` in `frontend/` (it proxies `/api` to po
 
 ## Limits
 
-- Python only; 20 MB ZIP, 100 MB expanded, 1,000 files, 256 KiB per file.
+- Python, JavaScript/TypeScript, Java, Kotlin, Go, C#, C/C++, Rust, PHP, Swift and Ruby;
+  non-Python symbols are found heuristically. 20 MB ZIP, 100 MB expanded, 1,000 files,
+  256 KiB per file.
 - One repository at a time; uploads replace the current snapshot.
 - Local use only: run on `127.0.0.1`; the API rejects other hosts and browser origins.
 - Search finds words and symbols, not meaning; no match does not prove absence.
