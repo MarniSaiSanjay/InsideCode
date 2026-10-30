@@ -2,6 +2,7 @@
   font-family: system-ui, sans-serif;
   color: #1f2328;
   background: #f6f8fa;
+  line-height: 1.45;
 }
 
 body {
@@ -12,4 +13,140 @@ main {
   max-width: 1100px;
   margin: 0 auto;
   padding: 24px;
+}
+
+h1 {
+  margin-bottom: 4px;
+}
+
+h2 {
+  font-size: 1.1rem;
+}
+
+section {
+  margin-bottom: 20px;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+}
+
+.row input[name='q'] {
+  flex: 1;
+  padding: 8px;
+  font-size: 1rem;
+}
+
+button {
+  padding: 8px 14px;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: default;
+}
+
+button.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #0969da;
+  text-decoration: underline;
+}
+
+:focus-visible {
+  outline: 2px solid #0969da;
+  outline-offset: 2px;
+}
+
+.muted {
+  color: #59636e;
+  font-size: 0.9rem;
+}
+
+.ready {
+  color: #1a7f37;
+}
+
+.error {
+  color: #cf222e;
+}
+
+.results {
+  padding-left: 1.5rem;
+}
+
+.card {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #d1d9e0;
+  border-radius: 6px;
+}
+
+.card-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.path {
+  font-weight: 600;
+}
+
+.symbol {
+  font-family: ui-monospace, monospace;
+  color: #8250df;
+}
+
+.badge {
+  padding: 0 6px;
+  border-radius: 10px;
+  background: #fff8c5;
+  font-size: 0.8rem;
+}
+
+.code {
+  position: relative;
+  margin: 8px 0;
+  padding: 8px 0;
+  max-height: 320px;
+  overflow: auto;
+  background: #f6f8fa;
+  border-radius: 6px;
+  font: 13px/1.5 ui-monospace, monospace;
+}
+
+.code.full {
+  max-height: 480px;
+}
+
+.line {
+  display: block;
+  padding-right: 12px;
+  white-space: pre;
+}
+
+.line.hl {
+  background: #fff8c5;
+}
+
+.n {
+  display: inline-block;
+  width: 4.5em;
+  padding-right: 12px;
+  text-align: right;
+  color: #8c959f;
+  user-select: none;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
 }

@@ -5,9 +5,39 @@ export type Health = {
   limits: Record<string, number>
 }
 
+export type Snapshot = {
+  snapshot_id: string
+  name: string
+  files: number
+  chunks: number
+  skipped: Record<string, number>
+}
+
+export type Status = { importing: boolean; snapshot: Snapshot | null }
+
+export type Result = {
+  id: number
+  file_id: number
+  path: string
+  kind: string
+  symbol: string | null
+  start_line: number
+  end_line: number
+  text: string
+  is_test: boolean
+  reasons: string[]
+}
+
+export type SearchResponse = { snapshot_id: string; query: string; results: Result[] }
+
+export type Source = { id: number; path: string; text: string; is_test: boolean }
+
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`/api${path}`, init)
   const body = await response.json().catch(() => ({}))
-  if (!response.ok) throw new Error(body.detail ?? `Request failed (${response.status})`)
+  if (!response.ok) {
+    const detail = typeof body.detail === 'string' ? body.detail : undefined
+    throw new Error(detail ?? `Request failed (${response.status})`)
+  }
   return body as T
 }
