@@ -7,9 +7,10 @@ our application is not built yet. IDs below are illustrative.
 
 The user uploads the Flask repository. One file is:
 
-**`examples/tutorial/flaskr/auth.py`, lines 113-116:**
+**`examples/tutorial/flaskr/auth.py`, lines 112-116:**
 
 ```python
+@bp.route("/logout")
 def logout():
     """Clear the current session, including the stored user id."""
     session.clear()
@@ -25,7 +26,7 @@ Our Python backend reads that file. Python's `ast` parser identifies:
 ```text
 This is a function.
 Its name is logout.
-It starts at line 113 and ends at line 116.
+It starts at line 112 (its decorator) and ends at line 116.
 ```
 
 **Parsing finds structure and positions. It does not execute the function or ask
@@ -40,7 +41,7 @@ Our code saves a searchable record in local SQLite:
 | Record ID | C1 |
 | File | examples/tutorial/flaskr/auth.py |
 | Function | logout |
-| Start/end lines | 113 / 116 |
+| Start/end lines | 112 / 116 |
 | Code | Exact function text shown in step 1 |
 
 SQLite's full-text index lets words point back to matching records:
@@ -78,9 +79,9 @@ An evidence card:
 ```text
 File:     examples/tutorial/flaskr/auth.py
 Function: logout
-Lines:    113-116
+Lines:    112-116
 Why:      Exact function-name match
-Code:     The actual four lines shown in step 1
+Code:     The actual five lines shown in step 1
 ```
 
 The card displays the source code, not just its name. Clicking it opens the

@@ -1,6 +1,6 @@
 # Brahmaniss - Simple Implementation Plan
 
-**Status:** In progress — tasks 1-2 done. See `spec.md` for requirements and checks.
+**Status:** In progress — tasks 1-3 done. See `spec.md` for requirements and checks.
 
 ## 1. Architecture
 

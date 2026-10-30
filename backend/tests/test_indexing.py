@@ -6,7 +6,7 @@ import zlib
 import pytest
 
 from app.config import Limits
-from app.indexing import Deadline, ImportRejected, read_zip
+from app.indexing import Deadline, ImportRejected, SourceFile, chunk_file, read_zip
 
 LIMITS = Limits()
 
@@ -149,3 +149,91 @@ def test_header_size_lies_are_capped():
 def test_deadline_is_enforced():
     with pytest.raises(ImportRejected, match="too long"):
         read_zip(make_zip({"a.py": "x"}), LIMITS, Deadline(-1))
+
+
+SAMPLE = """import os
+
+TIMEOUT = 5
+
+
+@decorator
+def top(a):
+    def inner():
+        return a
+    return inner
+
+
+class Service:
+    \"\"\"Docs.\"\"\"
+
+    name = "svc"
+
+    async def run(self):
+        return 1
+
+    class Inner:
+        def deep(self):
+            pass
+"""
+
+
+def spans(text: str, **kwargs):
+    return [
+        (c.kind, c.symbol, c.start, c.end) for c in chunk_file(SourceFile("m.py", text), **kwargs)
+    ]
+
+
+def test_chunks_symbols_with_exact_ranges():
+    assert spans(SAMPLE) == [
+        ("module", None, 1, 3),
+        ("function", "top", 6, 10),
+        ("class", "Service", 13, 16),
+        ("function", "Service.run", 18, 19),
+        ("class", "Service.Inner", 21, 21),
+        ("function", "Service.Inner.deep", 22, 23),
+    ]
+
+
+def test_definitions_inside_blocks_keep_symbols():
+    text = (
+        "try:\n    def a(): pass\nexcept ImportError:\n    pass\n\n"
+        "class C:\n    if True:\n        def m(self): pass\n"
+    )
+    assert spans(text) == [
+        ("module", None, 1, 1),
+        ("function", "a", 2, 2),
+        ("module", None, 3, 4),
+        ("class", "C", 6, 7),
+        ("function", "C.m", 8, 8),
+    ]
+
+
+def test_chunk_text_matches_source_lines():
+    lines = SAMPLE.split("\n")
+    for chunk in chunk_file(SourceFile("m.py", SAMPLE)):
+        assert chunk.text == "\n".join(lines[chunk.start - 1 : chunk.end])
+
+
+def test_long_regions_split_into_windows():
+    body = "def big():\n" + "    x = 1\n" * 9
+    assert spans(body, max_lines=4) == [
+        ("function", "big", 1, 4),
+        ("function", "big", 5, 8),
+        ("function", "big", 9, 10),
+    ]
+
+
+def test_syntax_error_falls_back_to_labelled_lines():
+    assert spans("def broken(:\n    pass\n\n\n\nx = 1", max_lines=2) == [
+        ("lines", None, 1, 2),
+        ("lines", None, 5, 6),
+    ]
+
+
+def test_crlf_cr_and_unicode_keep_line_numbers():
+    data = "# నమస్తే\r\nx = 1\r\rdef f():\r\n    return '✓'\r\n".encode()
+    file = read(make_zip({"u.py": data})).files[0]
+    assert [(c.symbol, c.start, c.end, c.text) for c in chunk_file(file)] == [
+        (None, 1, 2, "# నమస్తే\nx = 1"),
+        ("f", 4, 5, "def f():\n    return '✓'"),
+    ]
