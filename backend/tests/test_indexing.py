@@ -1,10 +1,12 @@
 import io
 import stat
+import time
 import zipfile
 import zlib
 
 import pytest
 
+from app import indexing
 from app.config import Limits
 from app.indexing import Deadline, ImportRejected, SourceFile, chunk_file, read_zip
 from tests.helpers import make_zip
@@ -256,6 +258,28 @@ GENERIC = {
         "var app = {};\napp.handle = function handle(req) {\n  return req;\n};\n",
         [("module", None, 1, 1), ("function", "app.handle", 2, 4)],
     ),
+    "ctl.js": (
+        "class Controller {\n  handle = (req) => {\n    return req;\n  };\n"
+        "  #hidden = function () {};\n}\n",
+        [
+            ("class", "Controller", 1, 1),
+            ("function", "Controller.handle", 2, 4),
+            ("function", "Controller.#hidden", 5, 5),
+        ],
+    ),
+    "Trail.java": (
+        "class Trail { // handlers\n    void handle() {\n        run();\n    }\n}\n",
+        [("class", "Trail", 1, 1), ("function", "Trail.handle", 2, 4)],
+    ),
+    "ctl.ts": (
+        "/** Doc. */\nexport class Controller {\n  private handle = async (req: Req) => {\n"
+        "    return req;\n  };\n  [key] = () => 1;\n}\n",
+        [
+            ("class", "Controller", 1, 2),
+            ("function", "Controller.handle", 3, 5),
+            ("class", "Controller", 6, 7),
+        ],
+    ),
     "main.go": (
         "package main\n\ntype Server struct {\n\tname string\n}\n\n"
         "// Handle serves one request.\nfunc (s *Server) Handle(r *Request) error {\n"
@@ -272,23 +296,27 @@ GENERIC = {
         [
             ("class", "UserService", 1, 1),
             ("function", "UserService.save", 2, 6),
-            ("class", "UserService", 8, 9),
+            ("function", "UserService.count", 8, 8),
         ],
     ),
-    "lib.rs": (
-        "impl<'a> fmt::Display for Wrapper<'a> {\n    fn fmt(&self) -> Result {\n"
-        "        Ok(())\n    }\n}\n",
-        [("class", "Wrapper", 1, 1), ("function", "Wrapper.fmt", 2, 4)],
-    ),
-    "Orders.cs": (
-        "namespace App\n{\n    public class OrderService\n    {\n"
-        "        public async Task<Dictionary<string, int>> GetAsync(int id)\n        {\n"
-        "            return null;\n        }\n    }\n}\n",
+    "Repo.kt": (
+        "class Repo {\n    fun find(id: Int): User? {\n        return null\n    }\n"
+        "    companion object {\n        fun create() = Repo()\n    }\n}\n",
         [
-            ("module", None, 1, 2),
-            ("class", "OrderService", 3, 4),
-            ("function", "OrderService.GetAsync", 5, 8),
+            ("class", "Repo", 1, 1),
+            ("function", "Repo.find", 2, 4),
+            ("class", "Repo.companion", 5, 5),
+            ("function", "Repo.companion.create", 6, 6),
         ],
+    ),
+    "Session.swift": (
+        "/// Session setup.\nextension Session {\n"
+        "    init(id: Int) {\n        self.id = id\n    }\n}\n",
+        [("class", "Session", 1, 2), ("function", "Session.init", 3, 5)],
+    ),
+    "Cart.php": (
+        "<?php\nclass Cart {\n    public function total(): int {\n        return 0;\n    }\n}\n",
+        [("module", None, 1, 1), ("class", "Cart", 2, 2), ("function", "Cart.total", 3, 5)],
     ),
     "invoice.rb": (
         "class Invoice\n  def total\n    items.sum\n  end\nend\n",
@@ -298,7 +326,7 @@ GENERIC = {
 
 
 @pytest.mark.parametrize("name", GENERIC)
-def test_chunks_other_languages_with_regex_definitions(name):
+def test_chunks_other_languages_with_tree_sitter_definitions(name):
     text, expected = GENERIC[name]
     assert spans(text, path=name) == expected
 
@@ -308,11 +336,28 @@ def test_chunks_other_languages_with_regex_definitions(name):
     [
         "function a() {\n  if (x) {\n    return 1;\n}\n",  # unbalanced braces
         "}}{{ ) garbage ( {\n" * 3,
-        "let x = 1;\nconsole.log(x);\n",  # no definitions
     ],
 )
-def test_unparseable_or_definition_free_code_falls_back_to_lines(text):
+def test_unparseable_code_falls_back_to_lines(text):
     assert {kind for kind, *_ in spans(text, path="a.ts")} == {"lines"}
+
+
+def test_deeply_nested_definitions_index_in_linear_time():
+    text = "class A {\n" * 6000 + "}\n" * 6000
+    start = time.monotonic()
+    found = spans(text, path="A.java")
+    assert time.monotonic() - start < 2 and found[0][:3] == ("class", "A", 1)
+    assert max(len(name) for _, name, *_ in found if name) < 100
+
+
+def test_slow_parse_falls_back_to_lines(monkeypatch):
+    monkeypatch.setattr(indexing, "PARSE_TIMEOUT_MICROS", 1)
+    text = "class A {\n  f() { return [1, 2]; }\n}\n" * 2000
+    assert {kind for kind, *_ in spans(text, path="a.ts")} == {"lines"}
+
+
+def test_definition_free_code_is_one_module_region():
+    assert spans("let x = 1;\nconsole.log(x);\n", path="a.ts") == [("module", None, 1, 2)]
 
 
 def test_long_python_function_keeps_closing_line():

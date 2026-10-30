@@ -340,17 +340,14 @@ const pattern = (comment: string, single: string) =>
   )
 // An unclosed string ends at the line end, so every match attempt succeeds and scanning stays linear.
 const QUOTED = String.raw`'(?:\\.|[^'\\\n])*'?`
-const RUST_CHAR = String.raw`'(?:\\.|[^'\\\n])'` // `'a` alone is a Rust lifetime, not a string
-const SLASH = String.raw`//.*|/\*[\s\S]*?(?:\*/|$)`
 const HASH_COMMENTS = pattern('#.*', QUOTED)
-const SLASH_COMMENTS = pattern(SLASH, QUOTED)
-const RUST = pattern(SLASH, RUST_CHAR)
+const SLASH_COMMENTS = pattern(String.raw`//.*|/\*[\s\S]*?(?:\*/|$)`, QUOTED)
 const DEFINES = new Set(['def', 'class', 'function', 'func', 'fn', 'struct', 'interface', 'enum', 'trait', 'module'])
 const TOKEN_CLASSES = ['com', 'str', 'dec', 'num', 'kw']
 type Token = [kind: string, text: string]
 
 function tokenize(text: string, path: string): Token[][] {
-  const regex = /\.(py|rb)$/i.test(path) ? HASH_COMMENTS : /\.rs$/i.test(path) ? RUST : SLASH_COMMENTS
+  const regex = /\.(py|rb)$/i.test(path) ? HASH_COMMENTS : SLASH_COMMENTS
   const lines: Token[][] = [[]]
   const push = (part: string, kind = '') =>
     part.split('\n').forEach((piece, i) => {

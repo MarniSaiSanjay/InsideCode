@@ -37,7 +37,7 @@ def test_words_split_identifiers():
         ("web/__tests__/api.js", True),
         ("server/handler_test.go", True),
         ("src/UserServiceTest.java", True),
-        ("App.Tests/OrderServiceTests.cs", True),
+        ("Tests/SessionTests.swift", True),
         ("spec/models/user_spec.rb", True),
         ("src/latest.ts", False),
         ("src/Contest.java", False),

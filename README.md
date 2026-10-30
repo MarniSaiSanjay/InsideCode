@@ -23,8 +23,8 @@ question ──> keyword + exact-symbol + symbol/path search (RRF) ┘──> ev
 - **Import** (`backend/app/indexing.py`): rejects unsafe paths, symlinks, duplicates,
   encrypted or oversized archives; keeps source files of supported languages, skips
   dependency/build folders and generated files; never runs uploaded code. Python is
-  chunked with `ast`; other languages with per-language definition regexes and brace
-  (or Ruby `end`) matching, falling back to line windows (`backend/app/languages.py`).
+  chunked with `ast`; other languages with their official tree-sitter grammars (bundled
+  wheels, fully offline), falling back to line windows (`backend/app/languages.py`).
 - **Index** (`backend/app/storage.py`): one SQLite database per snapshot, published
   atomically; a failed upload keeps the previous index; it survives restarts.
 - **Search** (`backend/app/search.py`): BM25 keyword search, exact-symbol lookup and
@@ -76,9 +76,8 @@ For frontend development, run `npx vite` in `frontend/` (it proxies `/api` to po
 
 ## Limits
 
-- Python, JavaScript/TypeScript, Java, Kotlin, Go, C#, C/C++, Rust, PHP, Swift and Ruby;
-  non-Python symbols are found heuristically. 20 MB ZIP, 100 MB expanded, 1,000 files,
-  256 KiB per file.
+- Python, JavaScript/TypeScript, Java, Kotlin, Go, PHP, Swift and Ruby. 20 MB ZIP,
+  100 MB expanded, 1,000 files, 256 KiB per file.
 - One repository at a time; uploads replace the current snapshot.
 - Local use only: run on `127.0.0.1`; the API rejects other hosts and browser origins.
 - Search finds words and symbols, not meaning; no match does not prove absence.
