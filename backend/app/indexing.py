@@ -13,7 +13,7 @@ from importlib import import_module
 from pathlib import PurePosixPath
 
 from tree_sitter import Language as TSLanguage
-from tree_sitter import Node, Parser
+from tree_sitter import Node, Parser, Query, QueryCursor, QueryError, Tree
 
 from .config import Limits
 from .languages import Language, language_for
@@ -42,6 +42,7 @@ PREAMBLE = {
 FIELD_NAMES = {"property_identifier", "private_property_identifier"}
 FUNCTION_VALUES = {"arrow_function", "function_expression", "generator_function"}
 SIMPLE_NAME = re.compile(r"[\w$]+(?:\.[\w$]+)*")
+MAX_REF_CHARS = 200  # longer import paths or called names are noise
 CLOSER_CHARS = " \t\n)]};,"  # a region of only these (or Ruby `end`) is a class's tail
 SUPPORTED_COMPRESSION = {zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED}
 ZIP_ERRORS = (
@@ -193,6 +194,18 @@ class Chunk:
     text: str
 
 
+Import = tuple[tuple[str, ...], bool]  # (specifiers to try in order, relative to the file)
+Call = tuple[str | None, str, bool]  # (calling definition, called name, called on a receiver)
+
+
+@dataclass
+class Facts:
+    """What a file imports and calls, for the architecture view."""
+
+    imports: list[Import] = field(default_factory=list)
+    calls: dict[Call, int] = field(default_factory=dict)  # first line of each call
+
+
 def _windows(lines: list[str], start: int, end: int, max_lines: int):
     for first in range(start, end + 1, max_lines):
         last = min(first + max_lines - 1, end)
@@ -217,11 +230,14 @@ def _symbols(tree: ast.Module):
 Span = tuple[int, int, str, str]  # (start, end, kind, qualified name); lines are 1-based
 
 
-def _python_spans(text: str) -> list[Span] | None:
+def _python_tree(text: str) -> ast.Module | None:
     try:
-        tree = ast.parse(text)
+        return ast.parse(text)
     except (SyntaxError, ValueError, RecursionError):
         return None
+
+
+def _python_spans(tree: ast.Module) -> list[Span]:
     return [
         (
             min([node.lineno] + [d.lineno for d in node.decorator_list]),
@@ -310,13 +326,15 @@ def _start(src: bytes, siblings: list[Node], i: int) -> int:
     return row
 
 
-def _tree_spans(lang: Language, grammar: str, text: str) -> list[Span] | None:
-    """Definitions not nested in functions, with class members qualified (as for Python)."""
-    src = text.encode()
-    try:  # keep the tree alive while walking
-        tree = Parser(_language(grammar), timeout_micros=PARSE_TIMEOUT_MICROS).parse(src)
+def _parse(grammar: str, src: bytes) -> Tree | None:
+    try:
+        return Parser(_language(grammar), timeout_micros=PARSE_TIMEOUT_MICROS).parse(src)
     except ValueError:  # timed out on pathological input
         return None
+
+
+def _tree_spans(lang: Language, src: bytes, tree: Tree) -> list[Span] | None:
+    """Definitions not nested in functions, with class members qualified (as for Python)."""
     root = tree.root_node
     spans: list[Span] = []
     # (parent, name prefix, start row of an enclosing `export` that the definition inherits)
@@ -341,13 +359,85 @@ def _tree_spans(lang: Language, grammar: str, text: str) -> list[Span] | None:
     return None if root.has_error and not spans else spans
 
 
-def _region_chunks(path: str, lines: list[str], spans: list[Span], max_lines: int) -> list[Chunk]:
-    """Chunks for each run of lines with the same owner: module code or the innermost span."""
-    total = len(lines)
-    owner: list[tuple[str, str | None]] = [("module", None)] * (total + 1)
+def _owners(total: int, spans: list[Span]) -> list[tuple[str, str | None]]:
+    """(kind, name) of the innermost span on each 1-based line; module code otherwise."""
+    owner: list[tuple[str, str | None]] = [("module", None)] * (total + 2)
     for start, end, kind, name in sorted(spans, key=lambda s: (s[0], -s[1])):
         owner[start : end + 1] = [(kind, name)] * (end - start + 1)
+    return owner
 
+
+@cache
+def _query(grammar: str, patterns: tuple[str, ...]) -> Query | None:
+    """One query of the patterns this grammar supports."""
+    lang = _language(grammar)
+    valid = []
+    for pattern in patterns:
+        try:
+            Query(lang, pattern)
+            valid.append(pattern)
+        except QueryError:
+            pass
+    return Query(lang, "\n".join(valid)) if valid else None
+
+
+def _captures(grammar: str, patterns: tuple[str, ...], tree: Tree) -> dict[str, list[Node]]:
+    query = _query(grammar, patterns)
+    return QueryCursor(query).captures(tree.root_node) if query else {}
+
+
+def _tree_facts(lang: Language, grammar: str, tree: Tree, owner: list) -> Facts:
+    facts = Facts()
+    for name, nodes in _captures(grammar, lang.imports, tree).items():
+        for node in nodes:
+            spec = node.text.decode("utf-8", "replace").strip().replace("\\", "/")
+            if name in ("import", "relative") and 0 < len(spec) <= MAX_REF_CHARS:
+                facts.imports.append(((spec,), name == "relative"))
+    for name, nodes in _captures(grammar, lang.calls, tree).items():
+        if name in ("call", "method"):
+            for node in nodes:
+                called = node.text.decode("utf-8", "replace")
+                if len(called) <= MAX_REF_CHARS:
+                    line = node.start_point.row + 1
+                    _add_call(facts, (owner[line][1], called, name == "method"), line)
+    return facts
+
+
+def _python_facts(tree: ast.Module, owner: list) -> Facts:
+    facts = Facts()
+    # Decorators run where the definition is made, not inside it.
+    decorators = {id(d) for n in ast.walk(tree) for d in getattr(n, "decorator_list", ())}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            facts.imports += [((a.name.replace(".", "/"),), False) for a in node.names]
+        elif isinstance(node, ast.ImportFrom):
+            prefix = "./" if node.level == 1 else "../" * (node.level - 1)
+            base = prefix + (node.module or "").replace(".", "/")
+            for alias in node.names:
+                tried = (base,) if alias.name == "*" else (f"{base.rstrip('/')}/{alias.name}", base)
+                facts.imports.append((tried, node.level > 0))
+        elif isinstance(node, ast.Call):
+            func = node.func
+            called, method = (
+                (func.id, False) if isinstance(func, ast.Name)
+                else (func.attr, True) if isinstance(func, ast.Attribute)
+                else (None, False)
+            )  # fmt: skip
+            if called:
+                caller = None if id(node) in decorators else owner[node.lineno][1]
+                _add_call(facts, (caller, called, method), node.lineno)
+    return facts
+
+
+def _add_call(facts: Facts, call: Call, line: int) -> None:
+    facts.calls[call] = min(facts.calls.get(call, line), line)
+
+
+def _region_chunks(
+    path: str, lines: list[str], owner: list[tuple[str, str | None]], max_lines: int
+) -> list[Chunk]:
+    """Chunks for each run of lines with the same owner: module code or the innermost span."""
+    total = len(lines)
     chunks = []
     run_start = 1
     for line in range(1, total + 2):
@@ -367,14 +457,25 @@ def _region_chunks(path: str, lines: list[str], spans: list[Span], max_lines: in
     return chunks
 
 
-def chunk_file(file: SourceFile, max_lines: int = MAX_CHUNK_LINES) -> list[Chunk]:
+def parse_file(file: SourceFile, max_lines: int = MAX_CHUNK_LINES) -> tuple[list[Chunk], Facts]:
+    """Searchable chunks, plus imports and calls (made inside definitions where possible)."""
     lines = file.text.split("\n")
     lang = language_for(file.path)
-    spans = None
-    if lang:
-        grammar = lang.grammars[PurePosixPath(file.path).suffix.lower()]
-        spans = _tree_spans(lang, grammar, file.text) if grammar else _python_spans(file.text)
+    spans, facts = None, Facts()
+    if lang and (grammar := lang.grammars[PurePosixPath(file.path).suffix.lower()]):
+        src = file.text.encode()
+        if tree := _parse(grammar, src):  # keep the tree alive while walking
+            spans = _tree_spans(lang, src, tree)
+            facts = _tree_facts(lang, grammar, tree, _owners(len(lines), spans or []))
+    elif lang and (module := _python_tree(file.text)):
+        spans = _python_spans(module)
+        facts = _python_facts(module, _owners(len(lines), spans))
     if spans is None:
         windows = _windows(lines, 1, len(lines), max_lines)
-        return [Chunk(file.path, "lines", None, a, b, t) for a, b, t in windows if t.strip()]
-    return _region_chunks(file.path, lines, spans, max_lines)
+        chunks = [Chunk(file.path, "lines", None, a, b, t) for a, b, t in windows if t.strip()]
+        return chunks, facts
+    return _region_chunks(file.path, lines, _owners(len(lines), spans), max_lines), facts
+
+
+def chunk_file(file: SourceFile, max_lines: int = MAX_CHUNK_LINES) -> list[Chunk]:
+    return parse_file(file, max_lines)[0]

@@ -1,0 +1,551 @@
+/* Architecture overview: module map with dependency arrows, and key call flows. */
+.arch-toggle,
+.arch-tabs button,
+.arch-module-main,
+.arch-key button,
+.scope-clear {
+  box-shadow: none;
+}
+
+button.arch-toggle:hover:not(:disabled),
+button.arch-module-main:hover:not(:disabled),
+.arch-tabs button:hover:not(:disabled) {
+  border-color: transparent;
+  background: none;
+  color: var(--text);
+}
+
+.arch {
+  margin-top: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  box-shadow: var(--shadow), var(--edge);
+  backdrop-filter: blur(12px);
+}
+
+.arch-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 14px 18px;
+}
+
+button.arch-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px 4px 2px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 1.02rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+}
+
+.arch-chevron {
+  width: 18px;
+  height: 18px;
+  color: var(--muted);
+  transform: rotate(-90deg);
+  transition: transform 0.2s var(--ease);
+}
+
+.arch-toggle[aria-expanded='true'] .arch-chevron {
+  transform: none;
+}
+
+.arch-meta {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.arch-tabs {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: auto;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+
+.arch-tabs button {
+  padding: 5px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 560;
+  cursor: pointer;
+}
+
+.arch-tabs button[aria-pressed='true'] {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+
+.arch-count {
+  margin-left: 4px;
+  color: var(--accent);
+}
+
+.arch-body {
+  padding: 0 18px 18px;
+}
+
+.arch-note,
+.arch-hint {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.arch-hint {
+  margin-top: 14px;
+  text-align: center;
+}
+
+.arch-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+}
+
+.arch-role {
+  --role: var(--accent);
+  padding: 4px 10px;
+  border: 1px solid color-mix(in srgb, var(--role) 30%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--role) 8%, var(--surface));
+  font-size: 0.82rem;
+}
+
+.arch-role b {
+  margin-right: 4px;
+  color: var(--role);
+  font-weight: 650;
+}
+
+.role-api {
+  --role: #0e7490;
+}
+
+.role-network {
+  --role: #b45309;
+}
+
+.role-data {
+  --role: #15803d;
+}
+
+.role-jobs {
+  --role: #be123c;
+}
+
+.role-ai {
+  --role: #c026d3;
+}
+
+.role-cli {
+  --role: #475569;
+}
+
+:root[data-theme='dark'] .arch-role b {
+  color: color-mix(in srgb, var(--role) 55%, #fff);
+}
+
+.arch-group + .arch-group {
+  margin-top: 18px;
+}
+
+.arch-group-title {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  font-weight: 560;
+}
+
+.arch-map {
+  position: relative;
+  display: grid;
+  gap: 56px;
+  padding: 28px 12px 52px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background-image: radial-gradient(var(--grid) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+.arch-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.arch-lines path {
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 45%, var(--border-strong));
+  transition:
+    stroke 0.15s,
+    opacity 0.15s;
+}
+
+.arch-lines marker path {
+  fill: color-mix(in srgb, var(--accent) 60%, var(--border-strong));
+  stroke: none;
+}
+
+.arch-lines.dim > path {
+  opacity: 0.15;
+}
+
+.arch-lines marker.on path {
+  fill: var(--accent);
+}
+
+.arch-lines.dim > path.on {
+  stroke: var(--accent);
+  opacity: 1;
+}
+
+.arch-row {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 18px 40px;
+}
+
+.arch-cell {
+  display: flex;
+  width: 220px;
+}
+
+.arch-cell:has(.arch-step) {
+  width: 250px;
+}
+
+.arch-module {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    opacity 0.15s;
+}
+
+.arch-module.linked {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  box-shadow: var(--shadow), var(--ring);
+}
+
+.arch-module.faded {
+  opacity: 0.5;
+}
+
+.arch-module.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+button.arch-module-main {
+  display: grid;
+  justify-content: stretch;
+  justify-items: start;
+  gap: 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* The whole box scopes the search; the key-code buttons sit above this layer. */
+button.arch-module-main::after {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  content: '';
+}
+
+button.arch-module-main:focus-visible {
+  outline: none;
+}
+
+.arch-module:has(.arch-module-main:focus-visible) {
+  box-shadow: var(--ring);
+}
+
+.arch-module-main strong {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 0.95rem;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.arch-module-main code {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.arch-module-meta {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.arch-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.arch-badge {
+  padding: 1px 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 560;
+}
+
+.arch-badge.entry {
+  border-color: color-mix(in srgb, var(--ok) 40%, var(--border));
+  background: color-mix(in srgb, var(--ok) 10%, var(--surface));
+  color: var(--ok);
+}
+
+.arch-badge.hub {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.arch-key {
+  display: grid;
+  gap: 2px;
+  margin: 2px 0 0;
+  padding: 6px 0 0;
+  border-top: 1px solid var(--border);
+  list-style: none;
+}
+
+.arch-key button {
+  position: relative;
+  z-index: 1;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.arch-key button {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 2px 4px;
+  overflow: hidden;
+  border-radius: 6px;
+  font-family: var(--mono);
+  font-size: 0.76rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.arch-key button:hover:not(:disabled) {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.arch-kind {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  font-family: var(--sans);
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
+.arch-kind.class {
+  background: color-mix(in srgb, var(--warn) 16%, transparent);
+  color: var(--warn);
+}
+
+.arch-step {
+  gap: 4px;
+  padding: 9px 11px;
+}
+
+.arch-step button.arch-module-main {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.arch-step-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+}
+
+.arch-module-main .arch-step-symbol {
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-right: auto;
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.arch-step-doc {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* Flows: numbered tags in each flow's colour, and a legend that traces a flow on hover. */
+.flow-tag {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--flow);
+  color: #fff;
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
+.flow-0 {
+  --flow: #6366f1;
+}
+
+.flow-1 {
+  --flow: #0891b2;
+}
+
+.flow-2 {
+  --flow: #d97706;
+}
+
+.flow-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+}
+
+.flow-legend button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 11px 4px 5px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.flow-legend button:hover:not(:disabled),
+.flow-legend button.on {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.flow-legend small {
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
+/* Search limited to one module. */
+.scope-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px 4px;
+  padding: 3px 4px 3px 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: 0.84rem;
+}
+
+.scope-chip code {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+}
+
+button.scope-clear {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+button.scope-clear:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--text);
+}

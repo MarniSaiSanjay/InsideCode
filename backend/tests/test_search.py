@@ -81,3 +81,14 @@ def test_exact_symbols_made_of_stopwords_are_found(settings, client):
             ("__get__", "Box.__get__"),
         ]:
             assert search(db, q)[0]["symbol"] == symbol, q
+
+
+def test_qualified_name_ranks_its_own_method_first(client):
+    repo = {
+        "a/blueprints.py": "class Setup:\n    def add_rule(self, rule):\n        add_rule(rule)\n",
+        "b/app.py": "class App:\n    def add_rule(self, rule):\n        return rule\n",
+    }
+    sid = upload(client, repo).json()["snapshot_id"]
+    body = client.get("/api/search", params={"snapshot_id": sid, "q": "App.add_rule"}).json()
+    assert body["results"][0]["symbol"] == "App.add_rule"
+    assert "exact qualified name" in body["results"][0]["reasons"]

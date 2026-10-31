@@ -92,8 +92,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         name = PurePosixPath((file.filename or "upload.zip").replace("\\", "/")).name[:100]
         return store.import_zip(name, data, settings.limits)
 
+    @app.get("/api/snapshots/{snapshot_id}/architecture")
+    def overview(snapshot_id: str):
+        return store.architecture(snapshot_id)
+
     @app.get("/api/search")
-    def find(snapshot_id: str, q: str = Query(max_length=MAX_QUERY_CHARS), expand: bool = False):
+    def find(
+        snapshot_id: str,
+        q: str = Query(max_length=MAX_QUERY_CHARS),
+        expand: bool = False,
+        scope: str | None = Query(None, max_length=MAX_QUERY_CHARS),
+    ):
         suggested, ai_note = [], None
         if expand:
             try:
@@ -101,10 +110,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             except AIUnavailable as exc:
                 ai_note = f"{exc}. Showing local search results only."
         with closing(store.connect(snapshot_id)) as db:
-            results = search(db, q, extra=suggested)
+            results = search(db, q, extra=suggested, scope=scope)
         return {
             "snapshot_id": snapshot_id,
             "query": q,
+            "scope": scope,
             "suggested_terms": suggested,
             "ai_note": ai_note,
             "results": results,

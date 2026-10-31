@@ -33,9 +33,39 @@ export type Result = {
 export type SearchResponse = {
   snapshot_id: string
   query: string
+  scope: string | null
   suggested_terms: string[]
   ai_note: string | null
   results: Result[]
+}
+
+export type ArchStep = { symbol: string; kind: string; path: string; line: number; module: string }
+
+/** A step of a key flow: its doc summary, last line, and the line where it calls the next step. */
+export type FlowStep = ArchStep & { end: number; doc: string | null; calls_at: number | null }
+
+export type ArchModule = {
+  id: string
+  label: string
+  files: number
+  definitions: number
+  language: string
+  entry: string[]
+  hub: boolean
+  stack: string[]
+  key: ArchStep[]
+}
+
+export type ArchEdge = { source: string; target: string; imports: number; calls: number }
+
+export type StackRole = { role: string; labels: string[] }
+
+export type Architecture = {
+  modules: ArchModule[]
+  edges: ArchEdge[]
+  groups: { title: string; stack: StackRole[]; rows: string[][] }[]
+  stack: StackRole[]
+  flows: FlowStep[][]
 }
 
 export type Source = { id: number; path: string; text: string; is_test: boolean }

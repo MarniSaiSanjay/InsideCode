@@ -141,7 +141,7 @@ def test_failed_publish_leaves_no_partial_state(settings, monkeypatch):
 def test_snapshot_from_older_schema_is_discarded(settings, client):
     upload(client, {"a.py": "x = 1\n"})
     pointer = settings.state_dir / "current.json"
-    pointer.write_text(pointer.read_text().replace('"schema": 3', '"schema": 2'))
+    pointer.write_text(pointer.read_text().replace('"schema": 4', '"schema": 3'))
     store = Store(settings.state_dir)
     assert store.current is None
     assert list(store.dir.iterdir()) == []

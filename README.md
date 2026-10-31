@@ -30,12 +30,18 @@ question ──> keyword + exact-symbol + symbol/path search (RRF) ┘──> ev
 - **Search** (`backend/app/search.py`): BM25 keyword search, exact-symbol lookup and
   symbol/path search merged with reciprocal-rank fusion; test files ranked lower and
   labelled. No AI is needed for indexing or search.
+- **Architecture** (`backend/app/architecture.py`): built at index time from the
+  imports and calls the parser found, without running the code. A module map shows
+  dependency arrows, entry points and hubs, and the detected stack (UI, API, data,
+  jobs, CLI). Key flows show the longest cross-file call chains as one call graph, with
+  doc summaries and the line of each call. Calls are linked only when the target is
+  unambiguous.
 - **AI** (`backend/app/explain.py`, optional): only after you review the exact text to
   be sent. At most five snippets (< 20 KiB) labelled `E1`–`E5`; replies with unknown or
   missing citations are rejected, and paths/lines always come from the index. General
   programming answers are labelled as not based on the repository.
-- **UI** (`frontend/src/App.tsx`): one page — upload, ask, evidence cards, full-file
-  viewer, and a separate AI panel.
+- **UI** (`frontend/src/App.tsx`): one page — upload, architecture overview
+  (`Architecture.tsx`), ask, evidence cards, full-file viewer, and a separate AI panel.
 
 ## Setup
 
@@ -82,6 +88,8 @@ For frontend development, run `npx vite` in `frontend/` (it proxies `/api` to po
 - One repository at a time; uploads replace the current snapshot.
 - Local use only: run on `127.0.0.1`; the API rejects other hosts and browser origins.
 - Search finds words and symbols, not meaning; no match does not prove absence.
+- The architecture view is static: dynamic imports, reflection and runtime wiring are
+  not seen, and calls whose target is ambiguous are left out.
   AI citations prove where a claim came from, not that the claim is correct.
 
 ## Evaluation
@@ -130,10 +138,12 @@ cd ../frontend && npm run build && npm run lint
 
 1. Click **Try the Flask sample** (pinned Flask commit, BSD-3-Clause, bundled at
    `frontend/public/samples/flask.zip`); the summary shows files, code regions, functions & classes and languages indexed.
-2. Ask *"Where is the session cookie signed and loaded?"*; `sessions.py` comes first.
-3. Open it in the full file to verify the highlighted lines.
-4. Ask *"How are payments processed with Stripe?"*; only weak matches appear.
-5. With AI configured: *Explain the top 5 results…*, review the exact context, send,
+2. In **Architecture**, hover a module to see its links, click it to search only inside
+   it, and open **Key flows** to trace call chains such as `AppGroup.command → AppContext`.
+3. Ask *"Where is the session cookie signed and loaded?"*; `sessions.py` comes first.
+4. Open it in the full file to verify the highlighted lines.
+5. Ask *"How are payments processed with Stripe?"*; only weak matches appear.
+6. With AI configured: *Explain the top 5 results…*, review the exact context, send,
    and follow the `E1`/`E2` citations back to the code.
 
 More detail: [`spec.md`](spec.md), [`implementation.md`](implementation.md),

@@ -8,11 +8,12 @@ import threading
 from contextlib import closing
 from pathlib import Path
 
+from . import architecture
 from .config import Limits
-from .indexing import Deadline, ImportRejected, SourceFile, chunk_file, read_zip
+from .indexing import Deadline, ImportRejected, SourceFile, parse_file, read_zip
 from .languages import is_test_path, language_for
 
-SCHEMA_VERSION = 3  # bump when SCHEMA or the summary changes; older snapshots are then discarded
+SCHEMA_VERSION = 4  # bump when SCHEMA or the summary changes; older snapshots are then discarded
 SCHEMA = """
 CREATE TABLE files (
     id INTEGER PRIMARY KEY, path TEXT NOT NULL UNIQUE, text TEXT NOT NULL,
@@ -24,6 +25,7 @@ CREATE TABLE chunks (
     text TEXT NOT NULL
 );
 CREATE INDEX chunks_name ON chunks(name);
+CREATE TABLE architecture (data TEXT NOT NULL);
 CREATE VIRTUAL TABLE chunks_fts USING fts5(
     symbol, path, code, content='', tokenize='porter unicode61'
 );
@@ -59,6 +61,7 @@ def symbol_name(symbol: str | None) -> str | None:
 def _build(path: Path, files: list[SourceFile], deadline: Deadline) -> tuple[int, int]:
     """Index files; return (chunks, definitions), counting each named function or class once."""
     count = 0
+    overview: list[architecture.FileInfo] = []
     with closing(sqlite3.connect(path)) as db:
         db.executescript(SCHEMA)
         for file in files:
@@ -69,7 +72,16 @@ def _build(path: Path, files: list[SourceFile], deadline: Deadline) -> tuple[int
                 (file.path, file.text, digest, is_test_path(file.path)),
             ).lastrowid
             path_words = " ".join(words(file.path))
-            for chunk in chunk_file(file):
+            chunks, facts = parse_file(file)
+            if not is_test_path(file.path):
+                spans: dict[str, tuple[str, int, int]] = {}
+                for c in chunks:  # long definitions are split into several chunks
+                    if c.kind in ("function", "class") and c.symbol:
+                        kind, first, last = spans.get(c.symbol, (c.kind, c.start, c.end))
+                        spans[c.symbol] = (kind, min(first, c.start), max(last, c.end))
+                defs = [(symbol, *span) for symbol, span in spans.items()]
+                overview.append(architecture.FileInfo(file.path, file.text, defs, facts))
+            for chunk in chunks:
                 chunk_id = db.execute(
                     "INSERT INTO chunks (file_id, kind, symbol, name, start_line, end_line, text)"
                     " VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -98,6 +110,9 @@ def _build(path: Path, files: list[SourceFile], deadline: Deadline) -> tuple[int
             "SELECT COUNT(*) FROM (SELECT DISTINCT file_id, symbol FROM chunks"
             " WHERE kind IN ('function', 'class') AND symbol IS NOT NULL)"
         ).fetchone()
+        deadline.check()
+        data = json.dumps(architecture.build(overview, deadline.check))
+        db.execute("INSERT INTO architecture (data) VALUES (?)", (data,))
         db.commit()
     return count, definitions
 
@@ -175,6 +190,10 @@ class Store:
             raise StaleSnapshot from exc
         db.row_factory = sqlite3.Row
         return db
+
+    def architecture(self, snapshot_id: str) -> dict:
+        with closing(self.connect(snapshot_id)) as db:
+            return json.loads(db.execute("SELECT data FROM architecture").fetchone()[0])
 
     def source(self, snapshot_id: str, file_id: int) -> dict | None:
         with closing(self.connect(snapshot_id)) as db:

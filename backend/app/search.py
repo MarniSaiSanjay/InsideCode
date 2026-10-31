@@ -3,6 +3,7 @@ import sqlite3
 from collections import defaultdict
 from collections.abc import Sequence
 
+from .architecture import in_scope
 from .storage import symbol_name, words
 
 MAX_QUERY_CHARS = 500
@@ -35,20 +36,23 @@ def terms(query: str) -> list[str]:
     return [w for w in found if w not in STOPWORDS][:MAX_TERMS]
 
 
-def _fts(db: sqlite3.Connection, useful: list[str], columns: str = "") -> list[int]:
+def _fts(
+    db: sqlite3.Connection, useful: list[str], columns: str = "", scoped: str = ""
+) -> list[int]:
     """Chunks matching any term (terms are quoted, so FTS syntax in the query is inert)."""
     if not useful:
         return []
     match = columns + "(" + " OR ".join(f'"{t}"' for t in useful) + ")"
     rows = db.execute(
-        "SELECT rowid FROM chunks_fts WHERE chunks_fts MATCH ?"
+        "SELECT chunks_fts.rowid FROM chunks_fts JOIN chunks c ON c.id = chunks_fts.rowid"
+        f" JOIN files f ON f.id = c.file_id WHERE chunks_fts MATCH ?{scoped}"
         " ORDER BY bm25(chunks_fts, 10.0, 5.0, 1.0) LIMIT ?",
         (match, CANDIDATES),
     )
     return [row[0] for row in rows]
 
 
-def _exact_symbols(db: sqlite3.Connection, query: str) -> list[int]:
+def _exact_symbols(db: sqlite3.Connection, query: str, scoped: str = "") -> list[int]:
     """Chunks named by a code-like identifier in the query, or by a one-word query."""
     tokens = IDENTIFIER.findall(query[:MAX_QUERY_CHARS])
     names = {symbol_name(t) for t in tokens if len(tokens) == 1 or CODE_LIKE.search(t)}
@@ -57,27 +61,52 @@ def _exact_symbols(db: sqlite3.Connection, query: str) -> list[int]:
         return []
     marks = ",".join("?" * len(names))
     rows = db.execute(
-        f"SELECT c.id FROM chunks c JOIN files f ON f.id = c.file_id WHERE c.name IN ({marks})"
-        " ORDER BY f.is_test, c.id LIMIT ?",
+        "SELECT c.id FROM chunks c JOIN files f ON f.id = c.file_id"
+        f" WHERE c.name IN ({marks}){scoped} ORDER BY f.is_test, c.id LIMIT ?",
         (*names, CANDIDATES),
     )
     return [row[0] for row in rows]
 
 
+def _qualified_symbols(db: sqlite3.Connection, query: str, scoped: str = "") -> list[int]:
+    """Chunks whose whole dotted symbol (e.g. `App.add_url_rule`) is named in the query."""
+    names = sorted({t.lower() for t in IDENTIFIER.findall(query[:MAX_QUERY_CHARS]) if "." in t})
+    if not names:
+        return []
+    marks = ",".join("?" * len(names[:MAX_TERMS]))
+    rows = db.execute(
+        "SELECT c.id FROM chunks c JOIN files f ON f.id = c.file_id"
+        f" WHERE c.name IN ({marks}) AND lower(c.symbol) IN ({marks}){scoped}"
+        " ORDER BY f.is_test, c.id LIMIT ?",
+        (*[symbol_name(n) for n in names[:MAX_TERMS]], *names[:MAX_TERMS], CANDIDATES),
+    )
+    return [row[0] for row in rows]
+
+
 def search(
-    db: sqlite3.Connection, query: str, hybrid: bool = True, extra: Sequence[str] = ()
+    db: sqlite3.Connection,
+    query: str,
+    hybrid: bool = True,
+    extra: Sequence[str] = (),
+    scope: str | None = None,
 ) -> list[dict]:
     """Rank code regions for a question; hybrid adds symbol/path matching to keyword search.
 
     `extra` terms (AI suggestions) add one more ranked list; the original lists are kept.
+    `scope` keeps only files of one architecture module.
     """
+    scoped = ""
+    if scope:
+        db.create_function("in_scope", 1, lambda path: in_scope(path, scope), deterministic=True)
+        scoped = " AND in_scope(f.path)"
     useful = terms(query)
-    lists = {"keyword match": _fts(db, useful)}
+    lists = {"keyword match": _fts(db, useful, scoped=scoped)}
     if hybrid:
-        lists["exact symbol"] = _exact_symbols(db, query)
-        lists["symbol/path match"] = _fts(db, useful, "{symbol path} : ")
+        lists["exact symbol"] = _exact_symbols(db, query, scoped)
+        lists["exact qualified name"] = _qualified_symbols(db, query, scoped)
+        lists["symbol/path match"] = _fts(db, useful, "{symbol path} : ", scoped)
     extra_terms = [t for t in terms(" ".join(extra)) if t not in useful]
-    lists["AI-suggested term"] = _fts(db, extra_terms)
+    lists["AI-suggested term"] = _fts(db, extra_terms, scoped=scoped)
 
     scores: dict[int, float] = defaultdict(float)
     reasons: dict[int, list[str]] = defaultdict(list)

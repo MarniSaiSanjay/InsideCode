@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type DragEvent, type FormEvent } from 'react'
 import { flushSync } from 'react-dom'
 import { api, uploadSnapshot, type Health, type SearchResponse, type Snapshot, type Status } from './api'
+import Architecture from './Architecture'
 import Results from './Results'
 
 type Busy = '' | 'upload' | 'search'
@@ -45,6 +46,8 @@ export default function App() {
   // Every visit starts on the upload page, even if the server still holds an earlier index.
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null)
   const [search, setSearch] = useState<SearchResponse | null>(null)
+  // Architecture module the search is limited to.
+  const [scope, setScope] = useState<string | null>(null)
   const [busy, setBusy] = useState<Busy>('')
   const [error, setError] = useState('')
   const [file, setFile] = useState<File | null>(null)
@@ -122,7 +125,7 @@ export default function App() {
   // A freshly indexed repo hands focus to search, the obvious next step.
   const snapshotId = snapshot?.snapshot_id
   useEffect(() => {
-    if (snapshotId) query.current?.focus()
+    if (snapshotId) query.current?.focus({ preventScroll: true })
   }, [snapshotId])
 
   // Only the newest request may update the page; older responses are ignored.
@@ -164,6 +167,7 @@ export default function App() {
       statusSeq.current++
       setSnapshot(s)
       setSearch(null)
+      setScope(null)
       setStepsDone(STEPS.length)
       setReplacing(false)
     })
@@ -199,6 +203,7 @@ export default function App() {
     setError('')
     setSnapshot(null)
     setSearch(null)
+    setScope(null)
     setReplacing(false)
     choose(null)
   }
@@ -210,6 +215,7 @@ export default function App() {
     if (!snapshot || !q) return
     const expand = form.get('expand') ? 'true' : 'false'
     const params = new URLSearchParams({ snapshot_id: snapshot.snapshot_id, q, expand })
+    if (scope) params.set('scope', scope)
     run('search', () => api<SearchResponse>(`/search?${params}`), setSearch)
   }
 
@@ -219,6 +225,16 @@ export default function App() {
     setDragging(false)
     if (busy || !event.dataTransfer.files.length) return
     choose(event.dataTransfer.files[0])
+  }
+
+  // Rendered synchronously first, so the submitted search already uses the new scope.
+  function searchIn(next: string | null, text?: string) {
+    flushSync(() => setScope(next))
+    if (!query.current) return
+    if (text !== undefined) query.current.value = text
+    askForm.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    query.current.focus({ preventScroll: true })
+    if (query.current.value.trim() && !busy) askForm.current?.requestSubmit()
   }
 
   function askExample(text: string) {
@@ -475,6 +491,14 @@ export default function App() {
               )}
             </section>
 
+            <Architecture
+              key={snapshot.snapshot_id}
+              snapshotId={snapshot.snapshot_id}
+              scope={scope}
+              onScope={(module) => searchIn(module)}
+              onSymbol={(symbol, module) => searchIn(module, symbol)}
+            />
+
             <section className="ask" aria-labelledby="ask-title">
               <h1 id="ask-title">
                 What are you <span className="gradient-text">looking for?</span>
@@ -483,6 +507,20 @@ export default function App() {
                 Ask in plain English or type a symbol. Every result cites exact lines.
               </p>
               <div className="palette">
+                {scope && (
+                  <div className="scope-chip">
+                    Searching only in <code>{scope}</code>
+                    <button
+                      type="button"
+                      className="scope-clear"
+                      aria-label="Search the whole repository"
+                      title="Search the whole repository"
+                      onClick={() => searchIn(null)}
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
                 <form id="ask" ref={askForm} onSubmit={ask} className="searchbar">
                   <label className="visually-hidden" htmlFor="q">Question or symbol</label>
                   <div className="search-field">
