@@ -1,4 +1,4 @@
-# Brahmaniss - Simple Implementation Plan
+# InsideCode - Simple Implementation Plan
 
 **Status:** Tasks 1-9 done and verified with a real OpenAI-compatible model (`gpt-4o-mini`). See `spec.md` for requirements and checks.
 
@@ -104,7 +104,7 @@ frontend/
   src/                 # Page, components, API client, styles
 evaluation/
   cases.json           # Ten verified questions and expected locations
-.brahmaniss/           # Private generated state; gitignored
+.insidecode/           # Private generated state; gitignored
 ```
 
 Split modules further only when necessary. Use one bounded in-process import task,

@@ -31,9 +31,9 @@ def test_allows_local_dev_origin(client):
 def test_serves_built_ui_beside_the_api(tmp_path):
     ui = tmp_path / "dist"
     ui.mkdir()
-    (ui / "index.html").write_text("<h1>Brahmaniss</h1>")
+    (ui / "index.html").write_text("<h1>InsideCode</h1>")
     app = create_app(Settings(state_dir=tmp_path / "state", ui_dir=ui))
     client = TestClient(app, base_url="http://127.0.0.1")
-    assert client.get("/").text == "<h1>Brahmaniss</h1>"
+    assert client.get("/").text == "<h1>InsideCode</h1>"
     assert client.get("/api/health").json()["status"] == "ok"
     assert client.get("/", headers={"host": "evil.example"}).status_code == 403

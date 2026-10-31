@@ -42,7 +42,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or load_settings()
     settings.state_dir.mkdir(parents=True, exist_ok=True)
     store = Store(settings.state_dir)
-    app = FastAPI(title="Brahmaniss")
+    app = FastAPI(title="InsideCode")
 
     @app.exception_handler(ImportRejected)
     def rejected(_: Request, exc: ImportRejected):

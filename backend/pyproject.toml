@@ -1,5 +1,5 @@
 [project]
-name = "brahmaniss"
+name = "insidecode"
 version = "0.1.0"
 description = "Evidence-first code discovery for new contributors"
 requires-python = ">=3.12"

@@ -8,7 +8,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 DEMO = json.loads((HERE / "cases.json").read_text())["repository"]
-TARGET = HERE.parent / ".brahmaniss" / "demo" / f"{DEMO['name']}.zip"
+TARGET = HERE.parent / ".insidecode" / "demo" / f"{DEMO['name']}.zip"
 
 
 def main() -> int:

@@ -1,4 +1,4 @@
-# Brahmaniss - Simple MVP Specification
+# InsideCode - Simple MVP Specification
 
 **Status:** Plan, not implemented.
 **Updated:** October 30, 2026.

@@ -33,7 +33,7 @@ class Settings:
 def load_settings() -> Settings:
     env = os.environ
     return Settings(
-        state_dir=Path(env.get("BRAHMANISS_STATE_DIR", ROOT / ".brahmaniss")),
+        state_dir=Path(env.get("INSIDECODE_STATE_DIR", ROOT / ".insidecode")),
         ai_key=env.get("FEATHERLESS_API_KEY", ""),
         ai_model=env.get("FEATHERLESS_MODEL", ""),
         ai_base_url=env.get("FEATHERLESS_BASE_URL", Settings.ai_base_url),

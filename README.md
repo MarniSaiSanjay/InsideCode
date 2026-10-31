@@ -1,9 +1,9 @@
-# Brahmaniss
+# InsideCode
 
 **Ask about unfamiliar code, find the right place, and verify the evidence.**
 
 New contributors lose hours finding where a feature lives in an unfamiliar repository.
-Brahmaniss indexes a code repository locally and answers questions such as
+InsideCode indexes a code repository locally and answers questions such as
 *"Where is the session cookie loaded?"* with ranked, exact source regions (path and
 line range) that you can open in the full file. AI is optional: with consent, it can
 suggest search terms or explain the top snippets, citing only the evidence it was shown.
@@ -60,7 +60,8 @@ cd backend
 ```
 
 Open <http://127.0.0.1:8723>, upload a repository ZIP (for example GitHub's
-"Download ZIP"), and ask a question.
+"Download ZIP") or click **Try the Flask sample**, and ask a question. Each visit starts
+on the upload page; **Start over** returns to it.
 
 Optional AI (search works without it):
 
@@ -127,7 +128,8 @@ cd ../frontend && npm run build && npm run lint
 
 ## Demo (under three minutes)
 
-1. Upload the Flask ZIP; the summary shows files, code regions, functions & classes and languages indexed.
+1. Click **Try the Flask sample** (pinned Flask commit, BSD-3-Clause, bundled at
+   `frontend/public/samples/flask.zip`); the summary shows files, code regions, functions & classes and languages indexed.
 2. Ask *"Where is the session cookie signed and loaded?"*; `sessions.py` comes first.
 3. Open it in the full file to verify the highlighted lines.
 4. Ask *"How are payments processed with Stripe?"*; only weak matches appear.

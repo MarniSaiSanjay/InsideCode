@@ -344,7 +344,7 @@ export default function App() {
         <div className="topbar-inner">
           <div className="brand">
             <Logo />
-            <span className="brand-name">Brahmaniss</span>
+            <span className="brand-name">InsideCode</span>
           </div>
           <div className="toolbar">
             <span className="tb-status local" title="Your code is indexed on this machine">
