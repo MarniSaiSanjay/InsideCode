@@ -421,6 +421,7 @@ def build(infos: list[FileInfo], check: Callable[[], None] = lambda: None) -> di
             spans[(info.path, symbol)] = (kind, first, last)
     # caller -> {callee: first line of the call}
     calls: dict[tuple[str, str], dict[tuple[str, str], int]] = defaultdict(dict)
+    top: dict[str, dict[tuple[str, str], int]] = defaultdict(dict)  # calls from top-level code
     file_calls: set[tuple[str, tuple[str, str]]] = set()
     for info in infos:
         check()
@@ -432,6 +433,7 @@ def build(infos: list[FileInfo], check: Callable[[], None] = lambda: None) -> di
             if PurePosixPath(target).stem in INDEX_STEMS:
                 visible |= imported[target]
         for (caller, name, method), line in info.facts.calls.items():
+            top_level = caller is None
             caller = caller if (info.path, caller) in spans else None
             own = caller.rsplit(".", 1)[0] + "." if caller and "." in caller else None
             inner = (own, caller + ".") if own else (caller + ".",) if caller else ()
@@ -460,8 +462,8 @@ def build(infos: list[FileInfo], check: Callable[[], None] = lambda: None) -> di
             )  # fmt: skip
             if target:
                 file_calls.add((info.path, target))
-                if caller:
-                    found = calls[(info.path, caller)]
+                if caller or top_level:
+                    found = calls[(info.path, caller)] if caller else top[info.path]
                     found[target] = min(found.get(target, line), line)
 
     # Module links.
@@ -575,7 +577,7 @@ def build(infos: list[FileInfo], check: Callable[[], None] = lambda: None) -> di
         ],
         "groups": groups,
         "stack": [{"role": r, "labels": sorted(everything[r])} for r in ROLES if r in everything],
-        "flows": _flows(calls, spans, module_of, {i.path for i in infos if entry(i)}, infos),
+        "flows": _flows(calls, top, spans, module_of, {i.path for i in infos if entry(i)}, infos),
     }
 
 
@@ -595,12 +597,23 @@ def _step(d: tuple[str, str], spans: dict, module_of: dict[str, str]) -> dict:
 
 def _flows(
     calls: dict[tuple[str, str], dict[tuple[str, str], int]],
+    top: dict[str, dict[tuple[str, str], int]],
     spans: dict,
     module_of: dict[str, str],
     entries: set[str],
     infos: list[FileInfo],
 ) -> list[list[dict]]:
-    """Up to MAX_FLOWS call chains that cross the most files, preferring entry points."""
+    """Up to MAX_FLOWS call chains, preferring ones that cross files and start at entry points.
+
+    An entry file's top-level code (e.g. `createApp()` in server/index.js) can start a chain.
+    """
+    texts = {i.path: i.text for i in infos}
+    calls, spans = dict(calls), dict(spans)
+    for path in sorted(entries & top.keys()):
+        node = (path, PurePosixPath(path).name)
+        if node not in spans:
+            calls[node] = top[path]
+            spans[node] = ("module", 1, len(texts[path].splitlines()))
     called = {t for targets in calls.values() for t in targets}
 
     @cache
@@ -616,21 +629,24 @@ def _flows(
             continue
         path = best(start, MAX_FLOW_STEPS)
         path = path[: next((i for i, d in enumerate(path) if d in path[:i]), len(path))]
-        if len(path) >= 3 and len({d[0] for d in path}) >= 2:
+        if len(path) >= 3:
             found.append((start[0] in entries, _score(path), path))
     chosen: list[tuple[tuple[str, str], ...]] = []
-    for _, _, path in sorted(found, key=lambda f: (not f[0], [-x for x in f[1]], f[2])):
+    # cross-file chains first; chains within one file only fill the remaining places
+    order = sorted(found, key=lambda f: (f[1][0] < 2, not f[0], [-x for x in f[1]], f[2]))
+    for _, _, path in order:
         if all(path[1] != c[1] and path[0] not in c for c in chosen):
             chosen.append(path)
         if len(chosen) == MAX_FLOWS:
             break
-    texts = {i.path: i.text for i in infos}
     return [
         [
             _step(d, spans, module_of)
             | {
                 "end": spans[d][2],
-                "doc": _doc(d[0], texts[d[0]].splitlines(), *spans[d][1:]),
+                "doc": None  # a file's opening comment is often a licence header
+                if spans[d][0] == "module"
+                else _doc(d[0], texts[d[0]].splitlines(), *spans[d][1:]),
                 "calls_at": calls[d][after] if after else None,  # where it calls the next step
             }
             for d, after in zip(path, path[1:] + (None,), strict=True)

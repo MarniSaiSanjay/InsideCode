@@ -202,3 +202,31 @@ def test_flow_steps_carry_doc_summaries_and_call_lines(client):
     assert steps["a/main.py"][::3] == ("Entry point.", 5)
     assert steps["b/svc.py"][0] == "Run the job now."
     assert steps["c/db.py"][0] is None
+
+
+def test_flows_start_at_entry_top_level_code_and_fall_back_to_one_file(client):
+    repo = {
+        "server/index.js": (
+            "import { createApp } from './app.js'\n\nconst app = createApp()\napp.listen(1)\n"
+        ),
+        "server/app.js": (
+            "function hash() {\n  return 1\n}\n\n"
+            "export function createApp() {\n  return { listen: () => hash() }\n}\n"
+        ),
+        "src/main.jsx": (
+            "function Editor() {\n  return 1\n}\n\n"
+            "function Workspace() {\n  return <Editor />\n}\n\n"
+            "function App() {\n  return <Workspace />\n}\n\nrender(<App />)\n"
+        ),
+    }
+    snapshot = upload(client, repo).json()
+    data = client.get(f"/api/snapshots/{snapshot['snapshot_id']}/architecture").json()
+    flows = [[(s["symbol"], s["kind"]) for s in f] for f in data["flows"]]
+    assert flows[0] == [("index.js", "module"), ("createApp", "function"), ("hash", "function")]
+    assert [s for s, _ in flows[1]] == [
+        "main.jsx",
+        "App",
+        "Workspace",
+        "Editor",
+    ]  # one file, so last
+    assert data["flows"][0][0]["doc"] is None

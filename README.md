@@ -33,9 +33,10 @@ question ──> keyword + exact-symbol + symbol/path search (RRF) ┘──> ev
 - **Architecture** (`backend/app/architecture.py`): built at index time from the
   imports and calls the parser found, without running the code. A module map shows
   dependency arrows, entry points and hubs, and the detected stack (UI, API, data,
-  jobs, CLI). Key flows show the longest cross-file call chains as one call graph, with
-  doc summaries and the line of each call. Calls are linked only when the target is
-  unambiguous.
+  jobs, CLI). Key flows show the longest call chains as one call graph, starting from
+  entry points (including a file's top-level code) and preferring chains that cross
+  files, with doc summaries and the line of each call. Calls are linked only when the
+  target is unambiguous.
 - **AI** (`backend/app/explain.py`, optional): only after you review the exact text to
   be sent. At most five snippets (< 20 KiB) labelled `E1`–`E5`; replies with unknown or
   missing citations are rejected, and paths/lines always come from the index. General

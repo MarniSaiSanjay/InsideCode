@@ -195,7 +195,8 @@ class Chunk:
 
 
 Import = tuple[tuple[str, ...], bool]  # (specifiers to try in order, relative to the file)
-Call = tuple[str | None, str, bool]  # (calling definition, called name, called on a receiver)
+# (calling definition: None for top-level code, "@" for a decorator; called name; on a receiver)
+Call = tuple[str | None, str, bool]
 
 
 @dataclass
@@ -424,7 +425,7 @@ def _python_facts(tree: ast.Module, owner: list) -> Facts:
                 else (None, False)
             )  # fmt: skip
             if called:
-                caller = None if id(node) in decorators else owner[node.lineno][1]
+                caller = "@" if id(node) in decorators else owner[node.lineno][1]
                 _add_call(facts, (caller, called, method), node.lineno)
     return facts
 

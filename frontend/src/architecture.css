@@ -408,6 +408,11 @@ button.arch-module-main:focus-visible {
   font-weight: 700;
 }
 
+.arch-kind.module {
+  background: color-mix(in srgb, var(--ok) 16%, transparent);
+  color: var(--ok);
+}
+
 .arch-kind.class {
   background: color-mix(in srgb, var(--warn) 16%, transparent);
   color: var(--warn);
@@ -446,6 +451,10 @@ button.arch-module-main:focus-visible {
   line-height: 1.4;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+}
+
+.arch-step-doc + .arch-module-meta {
+  margin-top: 6px;
 }
 
 /* Flows: numbered tags in each flow's colour, and a legend that traces a flow on hover. */

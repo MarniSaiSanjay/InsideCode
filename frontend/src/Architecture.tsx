@@ -512,18 +512,19 @@ function Flows({
         }}
         renderModule={(node) => {
           const s = graph.steps.get(node)!
+          const doc = s.kind === 'module' ? 'Top-level code that runs when the file loads' : s.doc
           const state = node === hovered || litNodes.has(node) ? 'linked' : hovered !== null ? 'faded' : ''
           return (
             <div className={`arch-module arch-step ${state}`} data-module={node} {...hover(node)}>
               <button
                 type="button"
                 className="arch-module-main"
-                title={`${s.doc ? `${s.doc}\n\n` : ''}Find ${s.symbol} (${s.path}:${s.line})`}
+                title={`${doc ? `${doc}\n\n` : ''}Find ${s.symbol} (${s.path}:${s.line})`}
                 onClick={() => onSymbol(s.symbol, s.module)}
               >
                 <span className="arch-step-head">
                   <span className={`arch-kind ${s.kind}`} aria-hidden="true">
-                    {s.kind === 'class' ? 'C' : 'ƒ'}
+                    {s.kind === 'class' ? 'C' : s.kind === 'module' ? '▤' : 'ƒ'}
                   </span>
                   <code className="arch-step-symbol">{s.symbol}</code>
                   {graph.inFlows.get(node)!.map((f) => (
@@ -532,7 +533,7 @@ function Flows({
                     </span>
                   ))}
                 </span>
-                {s.doc && <span className="arch-step-doc">{s.doc}</span>}
+                {doc && <span className="arch-step-doc">{doc}</span>}
                 <span className="arch-module-meta">
                   {fileName(s.path)}:{s.line}–{s.end} · {plural(s.end - s.line + 1, 'line')}
                   {graph.manyModules && ` · ${modules.get(s.module)?.label ?? s.module}`}
